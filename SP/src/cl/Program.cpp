@@ -62,7 +62,7 @@ int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::
 
 #ifdef TIMING
     event.wait();
-    return int((event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - event.getProfilingInfo<CL_PROFILING_COMMAND_START>()) * 1e-6);
+    return int((event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - event.getProfilingInfo<CL_PROFILING_COMMAND_START>()));
 #endif
 
     return 0;

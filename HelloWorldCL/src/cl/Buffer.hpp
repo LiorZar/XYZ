@@ -34,11 +34,12 @@ public:
     {
         dirty = true;
     }
-    bool FromFile(const std::string &path)
+    bool ReadFromFile(const std::string &path, bool upload = true)
     {
         _data = ReadFile<T>(path);
         dirty = true;
-        Upload();
+        if (upload)
+            Upload();
         return !_data.empty();
     }
     void Resize(size_t size)
@@ -103,11 +104,26 @@ public:
     {
         return _data[index];
     }
+    cl::Buffer &operator*() { return device(); }
+    const cl::Buffer &operator*() const { return device(); }
     const cl::Buffer &d() const { return device(); }
+    cl::Buffer &device()
+    {
+        Refresh();
+        return buffer;
+    }
     const cl::Buffer &device() const
     {
         Refresh();
         return buffer;
+    }
+    std::vector<T> &operator&() { return host(); }
+    const std::vector<T> &operator&() const { return host(); }
+
+    std::vector<T> &host()
+    {
+        dirty = true;
+        return _data;
     }
     const std::vector<T> &host() const { return _data; }
 
