@@ -36,7 +36,7 @@ int main()
     curr.ReadFromFile("../../../data/0/curr.bin");
     prev.ReadFromFile("../../../data/0/prev.bin");
     filter.ReadFromFile("../../../data/0/filter.bin");
-    result.ReadFromFile("../../../data/0/result.bin", false);
+    result.ReadFromFile("../../../data/0/out.bin", false);
     if (filter.size() != num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
         std::cerr << "Invalid data size" << std::endl;
@@ -44,7 +44,7 @@ int main()
     }
 
     int t0 = program.Dispatch1D("convolve", num_of_samples, 256, *prev, *curr, *filter, *out, num_of_samples, filter_size, num_of_channels);
-    std::cout << "Time: " << t0 << "ns\n";
+    std::cout << "Time: " << t0 << "us\n";
     out.Download();
     int errors = Compare(&out, &result);
     std::cout << "Errors: " << errors << std::endl;
