@@ -65,7 +65,7 @@ int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::
         queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
 
 #ifdef TIMING
-        queue.finish();
+        // queue.finish();
         event.wait();
         auto e = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
         auto s = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
