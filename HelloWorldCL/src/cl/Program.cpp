@@ -1,4 +1,5 @@
 #include "Program.h"
+#include <exception>
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 Program::Program(const std::string &sourceFilePath)
@@ -55,16 +56,27 @@ bool Program::Load(const std::string &sourceFilePath)
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::NDRange &local)
 {
-    auto global = adjustGlobalAndLocalSize(_global, local);
-    cl::CommandQueue &queue = Context::Q();
-    cl::Event event;
-    queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, nullptr, &event);
+    try
+    {
+        auto global = adjustGlobalAndLocalSize(_global, local);
+        cl::CommandQueue &queue = Context::Q();
+
+        cl::Event event;
+        queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
 
 #ifdef TIMING
-    event.wait();
-    return int((event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - event.getProfilingInfo<CL_PROFILING_COMMAND_START>()) * 1e-6);
+        queue.finish();
+        event.wait();
+        auto e = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+        auto s = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        return int((e - s) / 1000);
 #endif
-
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "OpenCL error: " << e.what() << std::endl;
+        return -1;
+    }
     return 0;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

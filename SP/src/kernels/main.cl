@@ -45,7 +45,6 @@ __kernel void convolve(
     float fr;
     float2 smp;
     float2 result = {0.0f, 0.0f};
-
     for (int f = 0, s = sample + 1 - filterSize; f < filterSize; ++f, ++s)
     {
         fr = filter[f * numChannels + channel];

@@ -23,10 +23,14 @@ Context::Context()
     }
 
     PrintDevice(fastestDevice);
+    device = fastestDevice;
 
     context = cl::Context(fastestDevice);
-    cl_queue_properties props[] = {CL_QUEUE_PROFILING_ENABLE, 0};
-    queue = cl::CommandQueue(context, fastestDevice, props);
+
+    cl_int err;
+    cl_command_queue command_queue;
+    command_queue = clCreateCommandQueue(context(), fastestDevice(), CL_QUEUE_PROFILING_ENABLE, &err);
+    queue = cl::CommandQueue(command_queue);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 Context &Context::getInstance()
