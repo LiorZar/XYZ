@@ -3,6 +3,23 @@
 #include "Context.h"
 
 template <typename T>
+std::vector<T> ReadFile(const std::string &path)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to open file: " << path << std::endl;
+        return {};
+    }
+    file.seekg(0, std::ios::end);
+    size_t size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::vector<T> data(size / sizeof(T));
+    file.read(reinterpret_cast<char *>(data.data()), size);
+    return data;
+}
+
+template <typename T>
 class Buffer
 {
 public:
@@ -16,6 +33,13 @@ public:
     void SetDirty()
     {
         dirty = true;
+    }
+    bool FromFile(const std::string &path)
+    {
+        _data = ReadFile<T>(path);
+        dirty = true;
+        Upload();
+        return !_data.empty();
     }
     void Resize(size_t size)
     {
