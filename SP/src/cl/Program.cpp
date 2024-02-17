@@ -1,5 +1,4 @@
 #include "Program.h"
-#include <exception>
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 Program::Program(const std::string &sourceFilePath)
@@ -15,7 +14,7 @@ bool Program::Load(const std::string &sourceFilePath)
     std::ifstream sourceFile(sourceFilePath);
     if (!sourceFile.is_open())
     {
-        std::cerr << "Failed to open source file: " << sourceFilePath << std::endl;
+        std::cerr << "**************** Failed to open source file: " << sourceFilePath << std::endl;
         return false;
     }
 
@@ -32,8 +31,8 @@ bool Program::Load(const std::string &sourceFilePath)
     // Build the program
     if (program.build() != CL_SUCCESS)
     {
-        std::cerr << "Failed to build program" << std::endl;
-        std::cerr << "Build log:" << std::endl;
+        std::cerr << "**************** Failed to build program" << std::endl;
+        std::cerr << "**************** Build log:" << std::endl;
         std::cerr << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
         return false;
     }
@@ -65,7 +64,7 @@ int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::
         auto res = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
         if (res != CL_SUCCESS)
         {
-            std::cerr << "Failed to enqueue kernel: " << res << std::endl;
+            std::cerr << "**************** Failed to enqueue kernel: " << res << std::endl;
             return -1;
         }
 #ifdef TIMING
@@ -78,7 +77,7 @@ int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::
     }
     catch (const std::exception &e)
     {
-        std::cerr << "OpenCL error: " << e.what() << std::endl;
+        std::cerr << "**************** OpenCL error: " << e.what() << std::endl;
         return -1;
     }
     return 0;
@@ -91,7 +90,7 @@ cl::Kernel &Program::getKernel(const std::string &name)
     auto it = m_kernelMap.find(name);
     if (it == m_kernelMap.end())
     {
-        std::cerr << "Kernel not found: " << name << std::endl;
+        std::cerr << "**************** Kernel not found: " << name << std::endl;
         return null;
     }
     return it->second;
