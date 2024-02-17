@@ -1,5 +1,4 @@
 #include "FFT.h"
-#include <exception>
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::Plan::Plan(size_t size, clfftLayout layout, clfftResultLocation _placeness, clfftPrecision _precision)
@@ -42,7 +41,10 @@ bool FFT::Plan::Init()
         return true;
     auto err = clfftCreateDefaultPlan(&handle, Context::get()(), dims, sizes);
     if (err != CL_SUCCESS)
+    {
+        std::cerr << "**************** clfftCreateDefaultPlan: " << err << std::endl;
         return false;
+    }
 
     clfftSetPlanBatchSize(handle, 1);
     clfftSetPlanPrecision(handle, precision);
@@ -105,15 +107,15 @@ FFT::FFT()
     std::cout << "clfftSetup: " << err1 << std::endl;
 
     PlanPtr plan;
-    plan = std::make_shared<Plan>(400000);
+    plan = std::make_shared<Plan>(NextPow235(500));
     plan->Init();
     plans[plan->Key()] = plan;
 
-    plan = std::make_shared<Plan>(20000);
+    plan = std::make_shared<Plan>(NextPow235(20000));
     plan->Init();
     plans[plan->Key()] = plan;
 
-    plan = std::make_shared<Plan>(20499);
+    plan = std::make_shared<Plan>(NextPow235(20499));
     plan->Init();
     plans[plan->Key()] = plan;
 }
@@ -128,6 +130,39 @@ FFT &FFT::getInstance()
 {
     static FFT instance;
     return instance;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+size_t FFT::NextPow2(size_t n)
+{
+    size_t p = 1;
+    while (p < n)
+        p <<= 1;
+    return p;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+size_t FFT::NextPow235(size_t n)
+{
+    std::vector<unsigned long> numbers = {1};
+    size_t i = 0, j = 0, k = 0; // Indices for 2, 3, and 5 multiples
+
+    while (numbers.back() < n)
+    {
+        size_t next2 = numbers[i] * 2;
+        size_t next3 = numbers[j] * 3;
+        size_t next5 = numbers[k] * 5;
+
+        size_t nextNumber = std::min<size_t>({next2, next3, next5});
+        numbers.push_back(nextNumber);
+
+        if (nextNumber == next2)
+            ++i;
+        if (nextNumber == next3)
+            ++j;
+        if (nextNumber == next5)
+            ++k;
+    }
+
+    return numbers.back();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
@@ -162,7 +197,7 @@ int FFT::dispatch(const Plan &_plan, bool fwd, cl::Buffer &inputBuffer, cl::Buff
     }
     catch (const std::exception &e)
     {
-        std::cerr << e.what() << '\n';
+        std::cerr << "****************" << e.what() << '\n';
     }
 
     return 0;

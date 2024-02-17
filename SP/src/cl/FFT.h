@@ -35,11 +35,13 @@ private:
 
 public:
     static FFT &getInstance();
+    static size_t NextPow2(size_t n);
+    static size_t NextPow235(size_t n);
     static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size);
     template <typename T>
     static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer, size_t offset, size_t size)
     {
-        return getInstance().dispatch(fwd, inputBuffer.Sub(offset, size), outputBuffer.Sub(offset, size), size);
+        return Dispatch(fwd, inputBuffer.Sub(offset, size), outputBuffer.Sub(offset, size), size);
     }
 
 private:
