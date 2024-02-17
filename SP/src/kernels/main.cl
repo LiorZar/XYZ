@@ -58,6 +58,20 @@ __kernel void Transpose2DPalanar(__global const float2 *input, __global float *o
     outputY[col * rows + row] = input[row * cols + col].y;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+__kernel void Transpose2DPalanarC(__global const float2 *input, __global float2 *outputX, __global float2 *outputY, const int cols, const int rows)
+{
+    int idx = get_global_id(0);
+    if (idx >= cols * rows)
+        return;
+    int row = idx / cols;
+    int col = idx % cols;
+
+    float2 x = {input[row * cols + col].x, 0.0f};
+    float2 y = {input[row * cols + col].y, 0.0f};
+    outputX[col * rows + row] = x;
+    outputY[col * rows + row] = y;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void InverseTranspose2DPalanar(__global const float *inputX, __global const float *inputY, __global float2 *output, const int cols, const int rows)
 {
     int idx = get_global_id(0);
@@ -67,6 +81,18 @@ __kernel void InverseTranspose2DPalanar(__global const float *inputX, __global c
     int col = idx % cols;
 
     float2 smp = {inputX[row * cols + col], inputY[row * cols + col]};
+    output[col * rows + row] = smp;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__kernel void InverseTranspose2DPalanarC(__global const float2 *inputX, __global const float2 *inputY, __global float2 *output, const int cols, const int rows)
+{
+    int idx = get_global_id(0);
+    if (idx >= cols * rows)
+        return;
+    int row = idx / cols;
+    int col = idx % cols;
+
+    float2 smp = {inputX[row * cols + col].x, inputY[row * cols + col].x};
     output[col * rows + row] = smp;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -98,6 +124,39 @@ __kernel void convolve1D(
         smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
 
         result += fr * smp;
+    }
+    output[idx] = result;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__kernel void convolve1DC(
+    __global const float2 *prev,
+    __global const float2 *curr,
+    __global const float *filter,
+    __global float2 *output,
+    const int inputSize,
+    const int filterSize,
+    const int numChannels)
+{
+    int idx = get_global_id(0); // sample index [0, inputSize]
+    if (idx >= inputSize)
+        return;
+
+    const int sample_per_channel = inputSize / numChannels;
+    const int sample = idx % sample_per_channel;
+    const int channel = idx / sample_per_channel;
+    const int base = channel * sample_per_channel;
+    const int fbase = channel * filterSize;
+
+    float fr;
+    float2 smp;
+    float2 result = {0.0f, 0.0f};
+    for (int f = 0, s = sample + 1 - filterSize; f < filterSize; ++f, ++s)
+    {
+        fr = filter[fbase + f];
+        smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
+
+        result.x += fr * smp.x;
+        result.y += fr * smp.y;
     }
     output[idx] = result;
 }
