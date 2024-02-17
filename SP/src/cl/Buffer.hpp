@@ -8,7 +8,7 @@ std::vector<T> ReadFile(const std::string &path)
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open())
     {
-        std::cerr << "Failed to open file: " << path << std::endl;
+        std::cerr << "**************** Failed to open file: " << path << std::endl;
         return {};
     }
     file.seekg(0, std::ios::end);
@@ -59,6 +59,7 @@ public:
             {
                 buffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, sizeof(T) * _data.size());
                 gpuSize = _data.size();
+                subBuffers.clear();
             }
             Context::Q().enqueueWriteBuffer(buffer, CL_TRUE, 0, sizeof(T) * _data.size(), _data.data());
             dirty = false;
@@ -136,15 +137,26 @@ public:
 
     cl::Buffer &Sub(size_t offset, size_t size) const
     {
+        Refresh();
         auto it = subBuffers.find({offset, size});
         if (it != subBuffers.end())
             return it->second;
         cl_buffer_region region;
         region.origin = sizeof(T) * offset;
         region.size = sizeof(T) * size;
-        auto sub = buffer.createSubBuffer(CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region);
-        subBuffers[{offset, size}] = sub;
-        return sub;
+        try
+        {
+            cl_int err;
+            auto sub = buffer.createSubBuffer(CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region, &err);
+            return subBuffers[{offset, size}] = sub;
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error creating sub-buffer: " << e.what() << std::endl;
+        }
+
+        static cl::Buffer empty;
+        return empty;
     }
 
 private:
