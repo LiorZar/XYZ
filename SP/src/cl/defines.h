@@ -12,6 +12,8 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <exception>
 
 #include <complex>
 #include <cmath>
+#include <algorithm>
