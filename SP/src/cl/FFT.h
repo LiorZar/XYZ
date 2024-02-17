@@ -35,11 +35,12 @@ private:
 
 public:
     static FFT &getInstance();
+    static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size);
     template <typename T>
-    static int Dispatch(bool fwd, const Buffer<T> &input, Buffer<T> &output, size_t size);
-    template <typename T>
-    static int Dispatch(bool fwd, const Buffer<std::complex<T>> &input, Buffer<std::complex<T>> &output, size_t size);
-    // static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size);
+    static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer, size_t offset, size_t size)
+    {
+        return getInstance().dispatch(fwd, inputBuffer.Sub(offset, size), outputBuffer.Sub(offset, size), size);
+    }
 
 private:
     int dispatch(const Plan &plan, bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer);

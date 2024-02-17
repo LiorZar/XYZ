@@ -104,7 +104,16 @@ FFT::FFT()
     std::cout << "clfftInitSetupData: " << err0 << std::endl;
     std::cout << "clfftSetup: " << err1 << std::endl;
 
-    PlanPtr plan = std::make_shared<Plan>(400000);
+    PlanPtr plan;
+    plan = std::make_shared<Plan>(400000);
+    plan->Init();
+    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(20000);
+    plan->Init();
+    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(20499);
     plan->Init();
     plans[plan->Key()] = plan;
 }
@@ -121,10 +130,11 @@ FFT &FFT::getInstance()
     return instance;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-// int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
-// {
-//     return getInstance().dispatch(fwd, inputBuffer, outputBuffer, size);
-// }
+int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
+{
+    Plan plan(size);
+    return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
+}
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 int FFT::dispatch(const Plan &_plan, bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer)
 {

@@ -24,7 +24,7 @@ float2 getSample(const float2 *data, int channel, int sample, int numChannels)
     return data[sample * numChannels + channel];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void Transpose1D(__global const float *input, __global float *output, const int cols, const int rows)
+__kernel void Transpose1D(__global const float *input, __global float *output, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -32,10 +32,10 @@ __kernel void Transpose1D(__global const float *input, __global float *output, c
     int row = idx / cols;
     int col = idx % cols;
 
-    output[col * rows + row] = input[row * cols + col];
+    output[col * new_row_stride + row] = input[row * cols + col];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void Transpose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows)
+__kernel void Transpose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -43,10 +43,10 @@ __kernel void Transpose2D(__global const float2 *input, __global float2 *output,
     int row = idx / cols;
     int col = idx % cols;
 
-    output[col * rows + row] = input[row * cols + col];
+    output[col * new_row_stride + row] = input[row * cols + col];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void Transpose2DPalanar(__global const float2 *input, __global float *outputX, __global float *outputY, const int cols, const int rows)
+__kernel void Transpose2DPalanar(__global const float2 *input, __global float *outputX, __global float *outputY, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -54,11 +54,11 @@ __kernel void Transpose2DPalanar(__global const float2 *input, __global float *o
     int row = idx / cols;
     int col = idx % cols;
 
-    outputX[col * rows + row] = input[row * cols + col].x;
-    outputY[col * rows + row] = input[row * cols + col].y;
+    outputX[col * new_row_stride + row] = input[row * cols + col].x;
+    outputY[col * new_row_stride + row] = input[row * cols + col].y;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void Transpose2DPalanarC(__global const float2 *input, __global float2 *outputX, __global float2 *outputY, const int cols, const int rows)
+__kernel void Transpose2DPalanarC(__global const float2 *input, __global float2 *outputX, __global float2 *outputY, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -68,11 +68,11 @@ __kernel void Transpose2DPalanarC(__global const float2 *input, __global float2 
 
     float2 x = {input[row * cols + col].x, 0.0f};
     float2 y = {input[row * cols + col].y, 0.0f};
-    outputX[col * rows + row] = x;
-    outputY[col * rows + row] = y;
+    outputX[col * new_row_stride + row] = x;
+    outputY[col * new_row_stride + row] = y;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void InverseTranspose2DPalanar(__global const float *inputX, __global const float *inputY, __global float2 *output, const int cols, const int rows)
+__kernel void InverseTranspose2DPalanar(__global const float *inputX, __global const float *inputY, __global float2 *output, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -81,10 +81,10 @@ __kernel void InverseTranspose2DPalanar(__global const float *inputX, __global c
     int col = idx % cols;
 
     float2 smp = {inputX[row * cols + col], inputY[row * cols + col]};
-    output[col * rows + row] = smp;
+    output[col * new_row_stride + row] = smp;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void InverseTranspose2DPalanarC(__global const float2 *inputX, __global const float2 *inputY, __global float2 *output, const int cols, const int rows)
+__kernel void InverseTranspose2DPalanarC(__global const float2 *inputX, __global const float2 *inputY, __global float2 *output, const int cols, const int rows, const int new_row_stride)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
@@ -93,7 +93,7 @@ __kernel void InverseTranspose2DPalanarC(__global const float2 *inputX, __global
     int col = idx % cols;
 
     float2 smp = {inputX[row * cols + col].x, inputY[row * cols + col].x};
-    output[col * rows + row] = smp;
+    output[col * new_row_stride + row] = smp;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void convolve1D(

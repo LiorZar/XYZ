@@ -8,8 +8,10 @@ const int GRP = 256;
 const int num_of_channels = 20;
 const int samples_per_channel = 20000;
 const int filter_size = 500;
+const int samples_per_channel_padd = 20499;
 const int num_of_samples = num_of_channels * samples_per_channel;
 const int num_of_filters = num_of_channels * filter_size;
+const int num_of_samples_padd = num_of_channels * samples_per_channel_padd;
 
 int Compare(const std::vector<std::complex<float>> &a, const std::vector<std::complex<float>> &b)
 {
@@ -58,9 +60,9 @@ int main()
     }
     // int tt = program.Dispatch1D("convolve2D", num_of_samples, GRP, *prev, *curr, *filter, *out, num_of_samples, filter_size, num_of_channels);
     // int t0 = program.Dispatch1D("Transpose2DPalanar", num_of_samples, GRP, *curr, *currx, *curry, num_of_channels, samples_per_channel);
-    int tt = program.Dispatch1D("Transpose1D", num_of_filters, GRP, *filter, *filter1, num_of_channels, filter_size);
-    int t0 = program.Dispatch1D("Transpose2DPalanarC", num_of_samples, GRP, *curr, *curr1[0], *curr1[1], num_of_channels, samples_per_channel);
-    int t1 = program.Dispatch1D("Transpose2DPalanarC", num_of_samples, GRP, *prev, *prev1[0], *prev1[1], num_of_channels, samples_per_channel);
+    int tt = program.Dispatch1D("Transpose1D", num_of_filters, GRP, *filter, *filter1, num_of_channels, filter_size, filter_size);
+    int t0 = program.Dispatch1D("Transpose2DPalanarC", num_of_samples, GRP, *curr, *curr1[0], *curr1[1], num_of_channels, samples_per_channel, samples_per_channel);
+    int t1 = program.Dispatch1D("Transpose2DPalanarC", num_of_samples, GRP, *prev, *prev1[0], *prev1[1], num_of_channels, samples_per_channel, samples_per_channel);
     el.Stamp("Transpose2DPalanar");
     filter1.Download();
     curr1[0].Download();
@@ -74,7 +76,7 @@ int main()
     out1[0].Download();
     out1[1].Download();
 
-    int t4 = program.Dispatch1D("InverseTranspose2DPalanarC", num_of_samples, GRP, *out1[0], *out1[1], *out, samples_per_channel, num_of_channels);
+    int t4 = program.Dispatch1D("InverseTranspose2DPalanarC", num_of_samples, GRP, *out1[0], *out1[1], *out, samples_per_channel, num_of_channels, num_of_channels);
 
     // int t0 = FFT::Dispatch(true, *curr, *out, num_of_samples);
     std::cout << "Transpose: " << t0 << "us, " << t1 << "us\n";

@@ -44,7 +44,7 @@ public:
     }
     void Resize(size_t size)
     {
-        _data.resize(size);
+        _data.resize(size, {});
         dirty = true;
     }
     void Refresh() const
@@ -134,7 +134,7 @@ public:
     }
     const T *data() const { return _data.data(); }
 
-    cl::Buffer &GetSubBuffer(size_t offset, size_t size) const
+    cl::Buffer &Sub(size_t offset, size_t size) const
     {
         auto it = subBuffers.find({offset, size});
         if (it != subBuffers.end())
