@@ -134,10 +134,24 @@ public:
     }
     const T *data() const { return _data.data(); }
 
+    cl::Buffer &GetSubBuffer(size_t offset, size_t size) const
+    {
+        auto it = subBuffers.find({offset, size});
+        if (it != subBuffers.end())
+            return it->second;
+        cl_buffer_region region;
+        region.origin = sizeof(T) * offset;
+        region.size = sizeof(T) * size;
+        auto sub = buffer.createSubBuffer(CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region);
+        subBuffers[{offset, size}] = sub;
+        return sub;
+    }
+
 private:
     std::vector<T> _data;
 
     mutable bool dirty;
     mutable size_t gpuSize = 0;
     mutable cl::Buffer buffer;
+    mutable std::map<std::pair<size_t, size_t>, cl::Buffer> subBuffers;
 };
