@@ -1,6 +1,8 @@
 #include "FFT.h"
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+cl::Buffer FFT::null;
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::Plan::Plan(size_t size, clfftLayout layout, clfftResultLocation _placeness, clfftPrecision _precision)
     : precision(_precision), placeness(_placeness)
 {
@@ -107,15 +109,27 @@ FFT::FFT()
     std::cout << "clfftSetup: " << err1 << std::endl;
 
     PlanPtr plan;
-    plan = std::make_shared<Plan>(NextPow235(500));
+    plan = std::make_shared<Plan>(NextPow235(500), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
     plan->Init();
     plans[plan->Key()] = plan;
 
-    plan = std::make_shared<Plan>(NextPow235(20000));
+    plan = std::make_shared<Plan>(NextPow235(500), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->Init();
     plans[plan->Key()] = plan;
 
-    plan = std::make_shared<Plan>(NextPow235(20499));
+    plan = std::make_shared<Plan>(NextPow235(20000), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
+    plan->Init();
+    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(NextPow235(20000), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    plan->Init();
+    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
+    plan->Init();
+    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->Init();
     plans[plan->Key()] = plan;
 }
@@ -167,7 +181,7 @@ size_t FFT::NextPow235(size_t n)
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
 {
-    Plan plan(size);
+    Plan plan(size, CLFFT_COMPLEX_INTERLEAVED, outputBuffer() != null() ? CLFFT_OUTOFPLACE : CLFFT_INPLACE);
     return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
