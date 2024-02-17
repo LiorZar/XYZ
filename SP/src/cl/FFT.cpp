@@ -121,19 +121,19 @@ FFT &FFT::getInstance()
     return instance;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
-{
-    return getInstance().dispatch(fwd, inputBuffer, outputBuffer, size);
-}
+// int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
+// {
+//     return getInstance().dispatch(fwd, inputBuffer, outputBuffer, size);
+// }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-int FFT::dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
+int FFT::dispatch(const Plan &_plan, bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer)
 {
     try
     {
-        auto &plan = plans[Plan(size).Key()];
+        auto &plan = plans[_plan.Key()];
         if (plan == nullptr)
         {
-            plan = std::make_shared<Plan>(size);
+            plan = std::make_shared<Plan>(_plan);
             if (false == plan->Init())
                 throw std::runtime_error("Failed to initialize FFT plan");
         }
@@ -156,14 +156,5 @@ int FFT::dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, s
     }
 
     return 0;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-void FFT::AllocateTmpBuffer(const clfftPlanHandle &plan)
-{
-    size_t tmpBufferSize;
-    clfftGetTmpBufSize(plan, &tmpBufferSize);
-
-    if (tmpBuffer() == nullptr || tmpBuffer.getInfo<CL_MEM_SIZE>() < tmpBufferSize)
-        tmpBuffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, tmpBufferSize);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

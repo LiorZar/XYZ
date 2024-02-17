@@ -62,8 +62,12 @@ int Program::Dispatch(cl::Kernel &kernel, const cl::NDRange &_global, const cl::
         cl::CommandQueue &queue = Context::Q();
 
         cl::Event event;
-        queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
-
+        auto res = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, NULL, &event);
+        if (res != CL_SUCCESS)
+        {
+            std::cerr << "Failed to enqueue kernel: " << res << std::endl;
+            return -1;
+        }
 #ifdef TIMING
         // queue.finish();
         event.wait();
