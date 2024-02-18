@@ -39,6 +39,16 @@ public:
     static size_t NextPow235(size_t n);
     static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size);
     template <typename T>
+    static int Dispatch(bool fwd, Buffer<T> &inputBuffer)
+    {
+        return Dispatch(fwd, *inputBuffer, null, inputBuffer.size());
+    }
+    template <typename T>
+    static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer)
+    {
+        return Dispatch(fwd, *inputBuffer, *outputBuffer, inputBuffer.size());
+    }
+    template <typename T>
     static int Dispatch(bool fwd, Buffer<T> &buffer, size_t offset, size_t size)
     {
         return Dispatch(fwd, buffer.Sub(offset, size), null, size);
