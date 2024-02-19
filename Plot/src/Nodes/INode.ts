@@ -1,5 +1,5 @@
 interface INode {
     name: string;
     shader: string;
-    draw(): void;
+    draw(prog: GLProgram): void;
 }

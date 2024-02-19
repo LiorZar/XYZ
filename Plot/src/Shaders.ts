@@ -1,6 +1,8 @@
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
 /// <reference path="shaders/reg.ts" />
+/// <reference path="shaders/regc.ts" />
+/// <reference path="shaders/grid.ts" />
 
 class ShaderMap {
     private shaders: Map<string, GLProgram>;
@@ -29,3 +31,5 @@ class ShaderMap {
 };
 const shaders: ShaderMap = new ShaderMap();
 shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
+shaders.addProgram('regc', shader_regc.vert, shader_regc.frag);
+shaders.addProgram('grid', shader_grid.vert, shader_grid.frag);

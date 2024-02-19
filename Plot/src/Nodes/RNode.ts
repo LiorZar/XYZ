@@ -1,6 +1,6 @@
 /// <reference path="INode.ts" />
-/// <reference path="Shaders.ts" />
-/// <reference path="Buffer.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
 
 class RNode implements INode {
     public name: string;
@@ -13,10 +13,8 @@ class RNode implements INode {
         const buffer = new GLBuffer();
         buffer.create(new Float32Array(vertexData), numComponents, gl.STATIC_DRAW);
         this.buffer = buffer;
-
     }
-
-    public draw(): void {
+    public draw(prog: GLProgram): void {
         this.buffer.Draw();
     }
 }

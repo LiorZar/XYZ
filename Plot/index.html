@@ -3,6 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<title>Control Panel and Canvas Layout</title>
+
 		<style>
 			* {
 				box-sizing: border-box; /* Include padding in the element's total width */
@@ -40,15 +41,21 @@
 				width: 100%;
 				height: 100%;
 			}
+			.bicon {
+				width: 35px;
+				height: 35px;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="container">
 			<div class="control-panel">
-				<!-- Add your controls here -->
-				<button>Control 1</button>
-				<button>Control 2</button>
-				<!-- Add more controls as needed -->
+				<button id="zoom-in" onclick="app.onButton('in')"><img src="icons/solid/plus.svg" class="bicon" /></button>
+				<button id="zoom-out" onclick="app.onButton('out')"><img src="icons/solid/minus.svg" class="bicon" /></button>
+				<button id="move-left" onclick="app.onButton('left')"><img src="icons/solid/arrow-left.svg" class="bicon" /></button>
+				<button id="move-right" onclick="app.onButton('right')"><img src="icons/solid/arrow-right.svg" class="bicon" /></button>
+				<button id="move-up" onclick="app.onButton('up')"><img src="icons/solid/arrow-up.svg" class="bicon" /></button>
+				<button id="move-down" onclick="app.onButton('down')"><img src="icons/solid/arrow-down.svg" class="bicon" /></button>
 			</div>
 			<div class="resizer"></div>
 			<div class="canvas-container">

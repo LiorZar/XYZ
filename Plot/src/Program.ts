@@ -63,7 +63,7 @@ class GLProgram {
         return this.program;
     }
 
-    public bindData(data: any): void {
+    public bind(data: any): void {
         for (let key in data) {
             const value = data[key];
             if (Array.isArray(value)) {

@@ -1,4 +1,4 @@
-/// <reference path="INode.ts" />
+/// <reference path="Nodes/INode.ts" />
 
 console.clear();
 

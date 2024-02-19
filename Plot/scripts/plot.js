@@ -1,5 +1,5 @@
 "use strict";
-/// <reference path="INode.ts" />
+/// <reference path="Nodes/INode.ts" />
 console.clear();
 const canvasDiv = document.getElementById('__canvas__');
 const gl = canvasDiv.getContext('webgl2');
@@ -87,7 +87,7 @@ class GLProgram {
     getProgram() {
         return this.program;
     }
-    bindData(data) {
+    bind(data) {
         for (let key in data) {
             const value = data[key];
             if (Array.isArray(value)) {
@@ -157,12 +157,72 @@ precision highp float;
 
 uniform vec2 uResolution;
 uniform vec4 uGrid;
-uniform vec2 uScale;   
+uniform float uScale;   
 uniform vec2 uTranslate;
 
+mat3 ProjectionMatrix()
+{
+    float rl = 1.0 / (uGrid.y - uGrid.x);
+    float tb = 1.0 / (uGrid.w - uGrid.z);
+    float tx = -(uGrid.y + uGrid.x) * rl;
+    float ty = -(uGrid.w + uGrid.z) * tb;
+
+    return mat3
+    (
+        2.0 * rl, 0.0, 0.0,
+        0.0, 2.0 * tb, 0.0,
+        tx, ty, 1.0
+    );
+}
+
+mat3 ModelMatrix()
+{
+    float aspect = uResolution.x / uResolution.y;
+    float sx = uScale;
+    float sy = uScale;
+    if (aspect > 1.f)
+        sx /= aspect;
+    else
+        sy *= aspect;
+    return mat3
+    (
+        sx, 0.f, 0.f,
+        0.f, sy, 0.f,
+        uTranslate.x, uTranslate.y, 1.f
+    );
+}
+vec2 ModelPosition(vec2 position)
+{
+    return (ModelMatrix() * vec3(position, 1.f)).xy;
+}
+vec2 ModelProjectionPosition(vec2 position)
+{
+    vec3 pos = ProjectionMatrix() * ModelMatrix() * vec3(position, 1.f);
+    return pos.xy / pos.z;
+}
 
 `;
 const shader_reg = {
+    vert: `
+in vec2 position;
+
+void main()
+{
+    gl_Position = vec4(ModelProjectionPosition(position), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
+const shader_regc = {
     vert: `
 in vec2 position;
 in vec4 color;
@@ -185,9 +245,32 @@ void main()
 }
 `
 };
+const shader_grid = {
+    vert: `
+in vec2 position;
+void main()
+{
+    vec4 grid = uGrid*2.0;
+    vec2 pos = vec2(mix(grid.x, grid.y, position.x), mix(grid.z, grid.w, position.y));
+    gl_Position = vec4(ModelProjectionPosition(pos), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
 /// <reference path="shaders/reg.ts" />
+/// <reference path="shaders/regc.ts" />
+/// <reference path="shaders/grid.ts" />
 class ShaderMap {
     constructor() {
         this.shaders = new Map();
@@ -212,9 +295,27 @@ class ShaderMap {
 ;
 const shaders = new ShaderMap();
 shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
+shaders.addProgram('regc', shader_regc.vert, shader_regc.frag);
+shaders.addProgram('grid', shader_grid.vert, shader_grid.frag);
 class glo {
     static Set(obj, key, value) {
         obj[key] = value;
+    }
+    static ToResL(val, res) {
+        return Math.floor(val / res) * res;
+    }
+    static ToResH(val, res) {
+        return Math.ceil(val / res) * res;
+    }
+    static AddRes(val, add, res) {
+        if (add > 0)
+            return this.ToResH(val + add, res);
+        return this.ToResL(val + add, res);
+    }
+    static MulRes(val, mul, res) {
+        if (mul > 1)
+            return this.ToResH(val * mul, res);
+        return this.ToResL(val * mul, res);
     }
 }
 glo.bal = {};
@@ -279,7 +380,7 @@ class GLBuffer {
         if (count < 0)
             count = this.elementCount;
         if (first + count > this.elementCount)
-            throw new Error('Invalid count');
+            count = this.elementCount - first;
         gl.drawArrays(mode, first, count);
     }
     unbind() {
@@ -290,8 +391,8 @@ class GLBuffer {
     }
 }
 /// <reference path="INode.ts" />
-/// <reference path="Shaders.ts" />
-/// <reference path="Buffer.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
 class RNode {
     constructor(name, shader, vertexData, numComponents) {
         this.name = name;
@@ -300,20 +401,122 @@ class RNode {
         buffer.create(new Float32Array(vertexData), numComponents, gl.STATIC_DRAW);
         this.buffer = buffer;
     }
-    draw() {
+    draw(prog) {
         this.buffer.Draw();
+    }
+}
+class Colors {
+}
+Colors.RED = [1, 0, 0, 1];
+Colors.GREEN = [0, 1, 0, 1];
+Colors.BLUE = [0, 0, 1, 1];
+Colors.WHITE = [1, 1, 1, 1];
+Colors.BLACK = [0, 0, 0, 1];
+Colors.YELLOW = [1, 1, 0, 1];
+Colors.CYAN = [0, 1, 1, 1];
+Colors.MAGENTA = [1, 0, 1, 1];
+Colors.ORANGE = [1, 0.5, 0, 1];
+Colors.GRAY = [0.5, 0.5, 0.5, 1];
+Colors.BROWN = [0.5, 0.25, 0, 1];
+Colors.PINK = [1, 0.5, 0.5, 1];
+Colors.PURPLE = [0.5, 0, 0.5, 1];
+Colors.LIME = [0.5, 1, 0, 1];
+Colors.TEAL = [0, 0.5, 0.5, 1];
+Colors.OLIVE = [0.5, 0.5, 0, 1];
+Colors.MAROON = [0.5, 0, 0, 1];
+Colors.NAVY = [0, 0, 0.5, 1];
+Colors.INDIGO = [0, 0.5, 1, 1];
+Colors.TURQUOISE = [0, 1, 0.5, 1];
+Colors.LAVENDER = [0.5, 0, 1, 1];
+Colors.BEIGE = [1, 1, 0.5, 1];
+Colors.MINT = [0.5, 1, 0.5, 1];
+Colors.APRICOT = [1, 0.5, 0, 1];
+Colors.LILAC = [0.5, 0, 1, 1];
+Colors.PEAR = [1, 0.5, 1, 1];
+Colors.COBALT = [0, 0.5, 1, 1];
+Colors.CERULEAN = [0, 1, 0.5, 1];
+Colors.AQUAMARINE = [0.5, 1, 1, 1];
+Colors.SALMON = [1, 0.5, 0.5, 1];
+Colors.TANGERINE = [1, 0.5, 0, 1];
+Colors.LEMON = [1, 1, 0, 1];
+/// <reference path="INode.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
+/// <reference path="../Colors.ts" />
+class Grid {
+    constructor(name, count, color = [0.2, 0.2, 0.2, 1]) {
+        this.name = name;
+        this.shader = 'grid';
+        this.color = color;
+        const vertexData = [];
+        const space = 1.0 / count;
+        vertexData.push(0, 0.5, 1, 0.5); // Vertical lines
+        vertexData.push(0.5, 0, 0.5, 1); // Horizontal lines
+        for (let i = 0; i <= 1; i += space) {
+            vertexData.push(0, i, 1, i); // Vertical lines
+            vertexData.push(i, 0, i, 1); // Horizontal lines
+        }
+        const buffer = new GLBuffer();
+        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        this.buffer = buffer;
+    }
+    draw(prog) {
+        prog.bind({ color: this.color });
+        gl.lineWidth(10.0);
+        this.buffer.Draw(gl.LINES, 4);
+        prog.bind({ color: Colors.LIME });
+        this.buffer.Draw(gl.LINES, 0, 4);
+    }
+}
+/// <reference path="INode.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
+class Quad {
+    constructor(name, shader, vertexData, color = [1, 0.2, 0.2, 1]) {
+        this.name = name;
+        this.shader = shader;
+        this.color = color;
+        const buffer = new GLBuffer();
+        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        this.buffer = buffer;
+    }
+    draw(prog) {
+        prog.bind({ color: this.color });
+        this.buffer.Draw();
+    }
+}
+/// <reference path="INode.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
+class Lines {
+    constructor(name, shader, vertexData, color = [0.2, 1, 0.2, 1]) {
+        this.name = name;
+        this.shader = shader;
+        this.color = color;
+        const buffer = new GLBuffer();
+        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        this.buffer = buffer;
+    }
+    draw(prog) {
+        prog.bind({ color: this.color });
+        this.buffer.Draw(gl.LINES);
     }
 }
 /// <reference path="Canvas.ts" />
 /// <reference path="Shaders.ts" />
-/// <reference path="RNode.ts" />
+/// <reference path="Nodes/RNode.ts" />
+/// <reference path="Nodes/Grid.ts" />
+/// <reference path="Nodes/Quad.ts" />
+/// <reference path="Nodes/Lines.ts" />
+const RESOLUTION = 0.1;
+const MOVE_STEP = 0.1;
 class App {
     constructor() {
         this.unfData = {
-            resolution: [0.0, 0.0],
-            grid: [0.0, 0.0, 0.0, 0.0],
-            scale: [0.0, 0.0],
-            translate: [0.0, 0.0]
+            uResolution: [0.0, 0.0],
+            uGrid: [-10.0, 10.0, -10.0, 10.0],
+            uScale: 1.0,
+            uTranslate: [0.0, 0.0]
         };
         const vertexData = [
             // Position    // Color
@@ -322,32 +525,72 @@ class App {
             -0.5, -0.5, 0.0, 0.0, 1.0, 1.0,
             0.5, -0.5, 1.0, 1.0, 0.0, 1.0 // Bottom right (yellow)
         ];
-        const node = new RNode("node1", "reg", vertexData, [2, 4]);
-        canvas.addNode("bk", node);
+        const grid = new Grid("grid", 8);
+        canvas.addNode("bk", grid);
+        // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
+        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
     }
-    resizeCanvasToDisplaySize() {
+    resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
         const height = canvasDiv.clientHeight;
-        if (canvasDiv.width !== width || canvasDiv.height !== height) {
-            canvasDiv.width = width;
-            canvasDiv.height = height;
-            gl.viewport(0, 0, width, height);
-            return true; // The canvas size was changed
-        }
-        return false; // The canvas size was not changed
+        if (!(force || canvasDiv.width !== width || canvasDiv.height !== height))
+            return false;
+        canvasDiv.width = width;
+        canvasDiv.height = height;
+        gl.viewport(0, 0, width, height);
+        this.unfData.uResolution[0] = width;
+        this.unfData.uResolution[1] = height;
+        return true;
     }
     drawScene() {
         this.resizeCanvasToDisplaySize();
         canvas.clear();
         let shaderName = "";
+        let program;
         for (const layer of canvas.layers) {
             for (const node of layer.nodes) {
                 if (shaderName !== node.shader) {
                     shaderName = node.shader;
-                    shaders.use(shaderName).bindData(this.unfData);
+                    program = shaders.use(shaderName);
+                    program.bind(this.unfData);
                 }
-                node.draw();
+                node.draw(program);
             }
+        }
+    }
+    Scale(factor) {
+        if (factor < 0)
+            return;
+        this.unfData.uScale = Math.max(RESOLUTION, glo.MulRes(this.unfData.uScale, factor, RESOLUTION));
+        console.log("Scale", this.unfData.uScale);
+    }
+    Translate(x, y) {
+        this.unfData.uTranslate[0] = glo.AddRes(this.unfData.uTranslate[0], x * MOVE_STEP, RESOLUTION);
+        this.unfData.uTranslate[1] = glo.AddRes(this.unfData.uTranslate[1], y * MOVE_STEP, RESOLUTION);
+        console.log("Translate", this.unfData.uTranslate);
+    }
+    onButton(name, value) {
+        console.log("onButton", name);
+        switch (name) {
+            case "in":
+                this.Scale(1.1);
+                break;
+            case "out":
+                this.Scale(0.9);
+                break;
+            case "left":
+                this.Translate(-1, 0);
+                break;
+            case "right":
+                this.Translate(1, 0);
+                break;
+            case "up":
+                this.Translate(0, 1);
+                break;
+            case "down":
+                this.Translate(0, -1);
+                break;
         }
     }
 }

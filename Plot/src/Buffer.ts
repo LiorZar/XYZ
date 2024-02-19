@@ -69,7 +69,7 @@ class GLBuffer {
         if (count < 0)
             count = this.elementCount;
         if (first + count > this.elementCount)
-            throw new Error('Invalid count');
+            count = this.elementCount - first;
 
         gl.drawArrays(mode, first, count);
     }

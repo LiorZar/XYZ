@@ -1,13 +1,19 @@
 /// <reference path="Canvas.ts" />
 /// <reference path="Shaders.ts" />
-/// <reference path="RNode.ts" />
+/// <reference path="Nodes/RNode.ts" />
+/// <reference path="Nodes/Grid.ts" />
+/// <reference path="Nodes/Quad.ts" />
+/// <reference path="Nodes/Lines.ts" />
+
+const RESOLUTION: number = 0.1;
+const MOVE_STEP: number = 0.1;
 
 class App {
     public unfData = {
-        resolution: [0.0, 0.0],
-        grid: [0.0, 0.0, 0.0, 0.0],
-        scale: [0.0, 0.0],
-        translate: [0.0, 0.0]
+        uResolution: [0.0, 0.0],
+        uGrid: [-10.0, 10.0, -10.0, 10.0],
+        uScale: 1.0,
+        uTranslate: [0.0, 0.0]
     }
 
     constructor() {
@@ -18,34 +24,65 @@ class App {
             -0.5, -0.5, 0.0, 0.0, 1.0, 1.0, // Bottom left (blue)
             0.5, -0.5, 1.0, 1.0, 0.0, 1.0  // Bottom right (yellow)
         ];
-        const node = new RNode("node1", "reg", vertexData, [2, 4]);
-        canvas.addNode("bk", node);
+        const grid = new Grid("grid", 8);
+        canvas.addNode("bk", grid);
+        // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
+        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
     }
-    private resizeCanvasToDisplaySize() {
+    private resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
         const height = canvasDiv.clientHeight;
-        if (canvasDiv.width !== width || canvasDiv.height !== height) {
-            canvasDiv.width = width;
-            canvasDiv.height = height;
-            gl.viewport(0, 0, width, height);
-            return true; // The canvas size was changed
-        }
-        return false; // The canvas size was not changed
+        if (!(force || canvasDiv.width !== width || canvasDiv.height !== height))
+            return false;
+
+        canvasDiv.width = width;
+        canvasDiv.height = height;
+        gl.viewport(0, 0, width, height);
+        this.unfData.uResolution[0] = width;
+        this.unfData.uResolution[1] = height;
+        return true;
     }
 
-    drawScene() { // Code to draw the scene goes here }       
+    public drawScene() { // Code to draw the scene goes here }       
         this.resizeCanvasToDisplaySize();
         canvas.clear();
 
         let shaderName = "";
+        let program: GLProgram | undefined;
         for (const layer of canvas.layers) {
             for (const node of layer.nodes) {
                 if (shaderName !== node.shader) {
                     shaderName = node.shader;
-                    shaders.use(shaderName).bindData(this.unfData);
+                    program = shaders.use(shaderName);
+                    program.bind(this.unfData);
                 }
-                node.draw();
+                node.draw(program);
             }
+        }
+    }
+    private Scale(factor: number) {
+        if (factor < 0)
+            return;
+        this.unfData.uScale = Math.max(RESOLUTION, glo.MulRes(this.unfData.uScale, factor, RESOLUTION));
+        console.log("Scale", this.unfData.uScale);
+    }
+    private Translate(x: number, y: number) {
+        this.unfData.uTranslate[0] = glo.AddRes(this.unfData.uTranslate[0], x * MOVE_STEP, RESOLUTION);
+        this.unfData.uTranslate[1] = glo.AddRes(this.unfData.uTranslate[1], y * MOVE_STEP, RESOLUTION);
+        console.log("Translate", this.unfData.uTranslate);
+    }
+
+    public onButton(name: string, value?: any) {
+        console.log("onButton", name);
+        switch (name) {
+            case "in": this.Scale(1.1); break;
+            case "out": this.Scale(0.9); break;
+
+            case "left": this.Translate(-1, 0); break;
+            case "right": this.Translate(1, 0); break;
+            case "up": this.Translate(0, 1); break;
+            case "down": this.Translate(0, -1); break;
         }
     }
 }
