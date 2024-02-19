@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Control Panel and Canvas Layout</title>
+		<style>
+			/* Container holding both the control panel and the canvas */
+			.container {
+				display: flex;
+				height: 100vh; /* Full height of the viewport */
+			}
+
+			/* Control Panel Styles */
+			.control-panel {
+				width: 250px; /* Fixed width for the control panel */
+				background-color: #f0f0f0; /* Light grey background */
+				padding: 20px; /* Padding around the content */
+				box-sizing: border-box; /* Include padding in the element's total width */
+			}
+
+			/* Canvas Styles */
+			.canvas-container {
+				flex-grow: 1; /* Take up remaining space */
+				background-color: #ffffff; /* White background */
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+			.resizer {
+				width: 5px; /* Width of the draggable area */
+				cursor: ew-resize; /* Cursor indicates resizable area */
+				background-color: #333; /* Resizer color */
+				height: 100%;
+			}
+			canvas {
+				max-width: 100%;
+				max-height: 100vh;
+				border: 1px solid #cccccc; /* Light grey border */
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="control-panel">
+				<!-- Add your controls here -->
+				<button>Control 1</button>
+				<button>Control 2</button>
+				<!-- Add more controls as needed -->
+			</div>
+			<div class="resizer"></div>
+			<div class="canvas-container">
+				<canvas id="myCanvas"></canvas>
+			</div>
+		</div>
+		<script>
+			document.addEventListener("DOMContentLoaded", function () {
+				const resizer = document.querySelector(".resizer");
+				const leftPanel = document.querySelector(".control-panel");
+				let startX, startWidth;
+
+				resizer.addEventListener("mousedown", function (e) {
+					startX = e.clientX;
+					startWidth = parseInt(document.defaultView.getComputedStyle(leftPanel).width, 10);
+					document.documentElement.addEventListener("mousemove", doDrag, false);
+					document.documentElement.addEventListener("mouseup", stopDrag, false);
+				});
+
+				function doDrag(e) {
+					leftPanel.style.width = startWidth + e.clientX - startX + "px";
+				}
+
+				function stopDrag() {
+					document.documentElement.removeEventListener("mousemove", doDrag, false);
+					document.documentElement.removeEventListener("mouseup", stopDrag, false);
+				}
+			});
+		</script>
+	</body>
+</html>

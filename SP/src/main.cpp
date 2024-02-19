@@ -3,6 +3,7 @@
 #include "cl/Buffer.hpp"
 #include "cl/FFT.h"
 #include "cl/Elapse.hpp"
+#include "net/WSProcessor.h"
 
 const int GRP = 256;
 const int num_of_channels = 20;
@@ -43,8 +44,23 @@ std::vector<std::complex<float>> Tone(float frequency, int sampleRate, float dur
 
     return signal;
 }
+std::vector<float> Tone1(float frequency, int sampleRate, float duration, size_t size)
+{
+    int numSamples = static_cast<int>(duration * sampleRate); // Total number of samples
+    std::vector<float> signal(std::max<size_t>(size, numSamples));
+
+    // Generate each sample of the sine wave
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float t = static_cast<float>(i) / sampleRate;                   // Current time in seconds for this sample
+        signal[i] = sin(2.0f * 3.14159265358979323846 * frequency * t); // Calculate the sine value
+    }
+
+    return signal;
+}
 int main()
 {
+    WSProcessor::ProcessHandshake(BinBuffer());
     Elapse el("Main");
     std::cout << "----------------------------------------------------------\n";
     Context::getInstance();
@@ -57,6 +73,10 @@ int main()
     Buffer<std::complex<float>> filterFFT(num_of_samples_padd);
     Buffer<std::complex<float>> curr, prev, out(num_of_samples), result;
     Buffer<std::complex<float>> currT(num_of_samples_padd), prevT(num_of_samples_padd), outT(num_of_samples_padd);
+
+    Buffer<float> tmp;
+    tmp.host() = Tone1(100, 44100, 1, 1000);
+    tmp.WriteToFile("../../../data/0/tmp.bin");
 
     int tot;
     curr.ReadFromFile("../../../data/0/curr.bin");

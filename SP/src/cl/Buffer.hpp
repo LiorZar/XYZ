@@ -42,6 +42,11 @@ public:
             Upload();
         return !_data.empty();
     }
+    void WriteToFile(const std::string &path)
+    {
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char *>(_data.data()), sizeof(T) * _data.size());
+    }
     void Resize(size_t size)
     {
         _data.resize(size, {});
