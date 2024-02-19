@@ -9,25 +9,25 @@ gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 class Canvas {
     public clearColor: number[];
-    public inodes: { [name: string]: INode } = {};
-    public layers: { [name: string]: INode[] } = {};
+    public layers: { name: string, nodes: INode[] }[] = [];
 
     addNode(layerName: string, node: INode) {
-        if (!this.layers[layerName]) {
-            this.layers[layerName] = [];
+        const layer = this.layers.find(layer => layer.name === layerName);
+        if (!layer)
+            this.layers.push({ name: layerName, nodes: [node] });
+        else {
+            const enode = layer.nodes.find(n => n.name === node.name);
+            if (enode)
+                throw new Error(`Node with name ${node.name} already exists in layer ${layerName}`);
+            layer.nodes.push(node);
         }
-        this.layers[layerName].push(node);
-        this.inodes[node.name] = node;
     }
-
     remNode(layerName: string, nodeName: string) {
-        const layer = this.layers[layerName];
+        const layer = this.layers.find(layer => layer.name === layerName);
         if (layer) {
-            const index = layer.findIndex(node => node.name === nodeName);
-            if (index !== -1) {
-                layer.splice(index, 1);
-                delete this.inodes[nodeName];
-            }
+            const index = layer.nodes.findIndex(node => node.name === nodeName);
+            if (index !== -1)
+                layer.nodes.splice(index, 1);
         }
     }
 

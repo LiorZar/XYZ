@@ -17,7 +17,6 @@ class RNode implements INode {
     }
 
     public draw(): void {
-        shaders.use(this.shader);
         this.buffer.Draw();
     }
 }

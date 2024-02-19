@@ -7,25 +7,26 @@ gl.clearColor(0, 0, 0, 1);
 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 class Canvas {
     constructor() {
-        this.inodes = {};
-        this.layers = {};
+        this.layers = [];
         this.clearColor = [0, 0, 0, 1];
     }
     addNode(layerName, node) {
-        if (!this.layers[layerName]) {
-            this.layers[layerName] = [];
+        const layer = this.layers.find(layer => layer.name === layerName);
+        if (!layer)
+            this.layers.push({ name: layerName, nodes: [node] });
+        else {
+            const enode = layer.nodes.find(n => n.name === node.name);
+            if (enode)
+                throw new Error(`Node with name ${node.name} already exists in layer ${layerName}`);
+            layer.nodes.push(node);
         }
-        this.layers[layerName].push(node);
-        this.inodes[node.name] = node;
     }
     remNode(layerName, nodeName) {
-        const layer = this.layers[layerName];
+        const layer = this.layers.find(layer => layer.name === layerName);
         if (layer) {
-            const index = layer.findIndex(node => node.name === nodeName);
-            if (index !== -1) {
-                layer.splice(index, 1);
-                delete this.inodes[nodeName];
-            }
+            const index = layer.nodes.findIndex(node => node.name === nodeName);
+            if (index !== -1)
+                layer.nodes.splice(index, 1);
         }
     }
     setClearColor(r, g, b, a) {
@@ -87,16 +88,23 @@ class GLProgram {
         return this.program;
     }
     bindData(data) {
-        for (let [key, value] of data) {
+        for (let key in data) {
+            const value = data[key];
             if (Array.isArray(value)) {
-                if (value.length === 1)
-                    this.uniform1f(key, value[0]);
-                else if (value.length === 2)
-                    this.uniform2f(key, value[0], value[1]);
-                else if (value.length === 3)
-                    this.uniform3f(key, value[0], value[1], value[2]);
-                else if (value.length === 4)
-                    this.uniform4f(key, value[0], value[1], value[2], value[3]);
+                switch (value.length) {
+                    case 1:
+                        this.uniform1f(key, value[0]);
+                        break;
+                    case 2:
+                        this.uniform2f(key, value[0], value[1]);
+                        break;
+                    case 3:
+                        this.uniform3f(key, value[0], value[1], value[2]);
+                        break;
+                    case 4:
+                        this.uniform4f(key, value[0], value[1], value[2], value[3]);
+                        break;
+                }
             }
             else
                 this.uniform1f(key, value);
@@ -147,15 +155,14 @@ const unfBlock = `#version 300 es
 
 precision highp float;
 
+uniform vec2 uResolution;
+uniform vec4 uGrid;
 uniform vec2 uScale;   
 uniform vec2 uTranslate;
-uniform float uRotation;
-uniform vec2 uResolution;
-uniform float uTime;
 
 
 `;
-const shader_bk = {
+const shader_reg = {
     vert: `
 in vec2 position;
 in vec4 color;
@@ -180,7 +187,7 @@ void main()
 };
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
-/// <reference path="shaders/bk.ts" />
+/// <reference path="shaders/reg.ts" />
 class ShaderMap {
     constructor() {
         this.shaders = new Map();
@@ -199,11 +206,12 @@ class ShaderMap {
         const program = this.shaders.get(name);
         if (program)
             program.use();
+        return program;
     }
 }
 ;
 const shaders = new ShaderMap();
-shaders.addProgram('bk', shader_bk.vert, shader_bk.frag);
+shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
 class glo {
     static Set(obj, key, value) {
         obj[key] = value;
@@ -293,7 +301,6 @@ class RNode {
         this.buffer = buffer;
     }
     draw() {
-        shaders.use(this.shader);
         this.buffer.Draw();
     }
 }
@@ -303,11 +310,10 @@ class RNode {
 class App {
     constructor() {
         this.unfData = {
-            scale: [0.0, 0.0],
-            translate: [0.0, 0.0],
-            rotation: 0.0,
             resolution: [0.0, 0.0],
-            time: 0.0
+            grid: [0.0, 0.0, 0.0, 0.0],
+            scale: [0.0, 0.0],
+            translate: [0.0, 0.0]
         };
         const vertexData = [
             // Position    // Color
@@ -316,14 +322,30 @@ class App {
             -0.5, -0.5, 0.0, 0.0, 1.0, 1.0,
             0.5, -0.5, 1.0, 1.0, 0.0, 1.0 // Bottom right (yellow)
         ];
-        const node = new RNode("node1", "bk", vertexData, [2, 4]);
-        canvas.addNode("main", node);
+        const node = new RNode("node1", "reg", vertexData, [2, 4]);
+        canvas.addNode("bk", node);
+    }
+    resizeCanvasToDisplaySize() {
+        const width = canvasDiv.clientWidth;
+        const height = canvasDiv.clientHeight;
+        if (canvasDiv.width !== width || canvasDiv.height !== height) {
+            canvasDiv.width = width;
+            canvasDiv.height = height;
+            gl.viewport(0, 0, width, height);
+            return true; // The canvas size was changed
+        }
+        return false; // The canvas size was not changed
     }
     drawScene() {
+        this.resizeCanvasToDisplaySize();
         canvas.clear();
-        for (const name in canvas.layers) {
-            const layer = canvas.layers[name];
-            for (const node of layer) {
+        let shaderName = "";
+        for (const layer of canvas.layers) {
+            for (const node of layer.nodes) {
+                if (shaderName !== node.shader) {
+                    shaderName = node.shader;
+                    shaders.use(shaderName).bindData(this.unfData);
+                }
                 node.draw();
             }
         }

@@ -1,4 +1,4 @@
-const shader_bk = {
+const shader_reg = {
     vert: `
 in vec2 position;
 in vec4 color;

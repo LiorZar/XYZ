@@ -1,6 +1,6 @@
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
-/// <reference path="shaders/bk.ts" />
+/// <reference path="shaders/reg.ts" />
 
 class ShaderMap {
     private shaders: Map<string, GLProgram>;
@@ -20,11 +20,12 @@ class ShaderMap {
     getProgram(name: string): GLProgram | undefined {
         return this.shaders.get(name);
     }
-    use(name: string): void {
+    use(name: string): GLProgram {
         const program = this.shaders.get(name);
         if (program)
             program.use();
+        return program;
     }
 };
 const shaders: ShaderMap = new ShaderMap();
-shaders.addProgram('bk', shader_bk.vert, shader_bk.frag);
+shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);

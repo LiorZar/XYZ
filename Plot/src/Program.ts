@@ -64,16 +64,23 @@ class GLProgram {
     }
 
     public bindData(data: any): void {
-        for (let [key, value] of data) {
+        for (let key in data) {
+            const value = data[key];
             if (Array.isArray(value)) {
-                if (value.length === 1)
-                    this.uniform1f(key, value[0]);
-                else if (value.length === 2)
-                    this.uniform2f(key, value[0], value[1]);
-                else if (value.length === 3)
-                    this.uniform3f(key, value[0], value[1], value[2]);
-                else if (value.length === 4)
-                    this.uniform4f(key, value[0], value[1], value[2], value[3]);
+                switch (value.length) {
+                    case 1:
+                        this.uniform1f(key, value[0]);
+                        break;
+                    case 2:
+                        this.uniform2f(key, value[0], value[1]);
+                        break;
+                    case 3:
+                        this.uniform3f(key, value[0], value[1], value[2]);
+                        break;
+                    case 4:
+                        this.uniform4f(key, value[0], value[1], value[2], value[3]);
+                        break;
+                }
             }
             else
                 this.uniform1f(key, value);
