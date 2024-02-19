@@ -9,16 +9,6 @@ typedef struct _float2
 #endif
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void addVectors(__global const float *a, __global const float *b, __global float *result, const int size)
-{
-    int i = get_global_id(0);
-
-    if (i < size)
-    {
-        result[i] = a[i] + b[i];
-    }
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
 float2 getSample(const float2 *data, int channel, int sample, int numChannels)
 {
     return data[sample * numChannels + channel];
@@ -35,27 +25,41 @@ __kernel void Transpose1D(__global const float *input, __global float *output, c
     output[col * new_row_stride + row] = input[row * cols + col];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__kernel void Transpose1DC(__global const float *input, __global float2 *output, const int cols, const int rows, const int new_row_stride)
+__kernel void Transpose1DC(__global const float *input, __global float2 *output, const int cols, const int rows, const int new_row_stride, const int reverse)
 {
     int idx = get_global_id(0);
     if (idx >= cols * rows)
         return;
     int row = idx / cols;
     int col = idx % cols;
+    int nrow = 0 == reverse ? row : cols - row - 1;
 
     float2 v = {input[row * cols + col], 0.0f};
-    output[col * new_row_stride + row] = v;
+    output[col * new_row_stride + nrow] = v;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void Transpose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows, const int new_row_stride)
 {
+    // cols = 20, rows = 20,000, new_row_stride = 32,768
     int idx = get_global_id(0);
-    if (idx >= cols * rows)
+    if (idx >= cols * rows) // 400,000
         return;
-    int row = idx / cols;
-    int col = idx % cols;
+    int row = idx / cols; // [0, 20,000)
+    int col = idx % cols; // [0, 20)
 
     output[col * new_row_stride + row] = input[row * cols + col];
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__kernel void InverseTranspose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows, const int new_row_stride)
+{
+    // cols = 20, rows = 20,000, new_row_stride = 32,768
+    int idx = get_global_id(0);
+    if (idx >= cols * rows) // 400,000
+        return;
+    int row = idx / cols; // [0, 20,000)
+    int col = idx % cols; // [0, 20)
+
+    output[row * cols + col] = input[col * new_row_stride + row];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void Transpose2DPalanar(__global const float2 *input, __global float *outputX, __global float *outputY, const int cols, const int rows, const int new_row_stride)

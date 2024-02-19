@@ -42,13 +42,18 @@ bool Program::Load(const std::string &sourceFilePath)
     std::vector<cl::Kernel> kernels;
     program.createKernels(&kernels);
     if (kernels.size() > 0)
+    {
+        std::cout << "----------------------------------------------------------\n";
         std::cout << "Kernels: " << kernels.size() << std::endl;
+    }
     for (const auto &k : kernels)
     {
         auto name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
         m_kernelMap[name] = k;
         std::cout << "\tKernel: " << name << std::endl;
     }
+    if (kernels.size() > 0)
+        std::cout << "----------------------------------------------------------\n";
 
     return true;
 }
