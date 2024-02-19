@@ -10,21 +10,26 @@ class Canvas {
         this.layers = [];
         this.clearColor = [0, 0, 0, 1];
     }
+    getNode(layerName, nodeName) {
+        const layer = this.layers.find(layer => layer.name === layerName);
+        if (layer)
+            return layer.nodes.find(node => node.name === nodeName);
+    }
     addNode(layerName, node) {
         const layer = this.layers.find(layer => layer.name === layerName);
         if (!layer)
             this.layers.push({ name: layerName, nodes: [node] });
         else {
-            const enode = layer.nodes.find(n => n.name === node.name);
-            if (enode)
-                throw new Error(`Node with name ${node.name} already exists in layer ${layerName}`);
+            const index = layer.nodes.findIndex(n => n.name === node.name);
+            if (index !== -1)
+                layer.nodes.splice(index, 1);
             layer.nodes.push(node);
         }
     }
     remNode(layerName, nodeName) {
         const layer = this.layers.find(layer => layer.name === layerName);
         if (layer) {
-            const index = layer.nodes.findIndex(node => node.name === nodeName);
+            const index = layer.nodes.findIndex(n => n.name === nodeName);
             if (index !== -1)
                 layer.nodes.splice(index, 1);
         }
@@ -297,6 +302,102 @@ const shaders = new ShaderMap();
 shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
 shaders.addProgram('regc', shader_regc.vert, shader_regc.frag);
 shaders.addProgram('grid', shader_grid.vert, shader_grid.frag);
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+const wnd = window;
+class FileSystemAccess {
+    constructor() {
+        this.directoryHandle = null;
+        this.files = new Map();
+    }
+    // Requests directory access from the user
+    RequestDirectoryAccess() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                this.directoryHandle = yield wnd.showDirectoryPicker();
+                console.log("Directory access granted");
+            }
+            catch (error) {
+                console.error("Directory access denied", error);
+            }
+        });
+    }
+    ListenToFile(fileName, callback) {
+        this.files.set(fileName, 0);
+        this.watchFile(fileName, callback);
+    }
+    // Listens to changes in a file
+    watchFile(fileName, callback) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!this.directoryHandle)
+                    throw new Error("Directory access not granted");
+                while (true) {
+                    if (!this.files.has(fileName))
+                        break;
+                    const lastModified = this.files.get(fileName);
+                    const fileHandle = yield this.directoryHandle.getFileHandle(fileName, { create: false });
+                    const file = yield fileHandle.getFile();
+                    if (file.size <= 0)
+                        continue;
+                    if (lastModified === file.lastModified)
+                        continue;
+                    const contents = yield file.arrayBuffer();
+                    this.files.set(fileName, file.lastModified);
+                    callback(contents);
+                }
+            }
+            catch (error) {
+                console.error(`Error watching file = ${fileName}`, error);
+            }
+            console.log(`Stopped watching file = ${fileName} `);
+        });
+    }
+    // Reads a file from the directory
+    readFile(fileName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!this.directoryHandle) {
+                    throw new Error("Directory access not granted");
+                }
+                const fileHandle = yield this.directoryHandle.getFileHandle(fileName, { create: false });
+                const file = yield fileHandle.getFile();
+                const contents = yield file.text();
+                return contents;
+            }
+            catch (error) {
+                console.error("Error reading file", error);
+                return null;
+            }
+        });
+    }
+    // Writes to a file in the directory
+    writeFile(fileName, contents) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!this.directoryHandle) {
+                    throw new Error("Directory access not granted");
+                }
+                const fileHandle = yield this.directoryHandle.getFileHandle(fileName, { create: true });
+                const writableStream = yield fileHandle.createWritable();
+                yield writableStream.write(contents);
+                yield writableStream.close();
+                console.log("File written successfully");
+            }
+            catch (error) {
+                console.error("Error writing file", error);
+            }
+        });
+    }
+}
+const fs = new FileSystemAccess();
 class glo {
     static Set(obj, key, value) {
         obj[key] = value;
@@ -462,7 +563,6 @@ class Grid {
     }
     draw(prog) {
         prog.bind({ color: this.color });
-        gl.lineWidth(10.0);
         this.buffer.Draw(gl.LINES, 4);
         prog.bind({ color: Colors.LIME });
         this.buffer.Draw(gl.LINES, 0, 4);
@@ -502,12 +602,49 @@ class Lines {
         this.buffer.Draw(gl.LINES);
     }
 }
+/// <reference path="INode.ts" />
+/// <reference path="../Shaders.ts" />
+/// <reference path="../Buffer.ts" />
+/// <reference path="../Colors.ts" />
+class Signal {
+    constructor(name, data, comp = 1, stride = 1, width = 20, color = [1, 1, 0, 1]) {
+        this.name = name;
+        this.shader = 'reg';
+        this.comp = comp;
+        this.stride = stride * comp;
+        this.width = width;
+        this.color = color;
+        this.update(data);
+    }
+    update(data) {
+        console.log("Signal update");
+        const fdata = new Float32Array(data);
+        const vertexData = [];
+        const { comp, stride, width } = this;
+        const count = fdata.length / stride;
+        const space = width / count;
+        let x = -0.5 * width;
+        for (let i = 0; i < fdata.length; i += stride) {
+            vertexData.push(x, fdata[i]);
+            x += space;
+        }
+        const buffer = new GLBuffer();
+        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        this.buffer = buffer;
+    }
+    draw(prog) {
+        prog.bind({ color: this.color });
+        this.buffer.Draw(gl.LINE_STRIP);
+    }
+}
 /// <reference path="Canvas.ts" />
 /// <reference path="Shaders.ts" />
+/// <reference path="FileSystemAccess.ts" />
 /// <reference path="Nodes/RNode.ts" />
 /// <reference path="Nodes/Grid.ts" />
 /// <reference path="Nodes/Quad.ts" />
 /// <reference path="Nodes/Lines.ts" />
+/// <reference path="Nodes/Signal.ts" />
 const RESOLUTION = 0.1;
 const MOVE_STEP = 0.1;
 class App {
@@ -528,8 +665,8 @@ class App {
         const grid = new Grid("grid", 8);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
         canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
+        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
     }
     resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
@@ -591,7 +728,21 @@ class App {
             case "down":
                 this.Translate(0, -1);
                 break;
+            case "dir":
+                fs.RequestDirectoryAccess();
+                break;
+            case "file":
+                fs.ListenToFile("tmp.bin", (data) => { this.onFile("tmp.bin", data); });
+                break;
         }
+    }
+    onFile(name, data) {
+        console.log("onFile", data);
+        const node = canvas.getNode("signals", name);
+        if (node)
+            node.update(data);
+        else
+            canvas.addNode("signals", new Signal(name, data));
     }
 }
 const app = new App();

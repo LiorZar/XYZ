@@ -11,21 +11,26 @@ class Canvas {
     public clearColor: number[];
     public layers: { name: string, nodes: INode[] }[] = [];
 
+    getNode(layerName: string, nodeName: string): INode | undefined {
+        const layer = this.layers.find(layer => layer.name === layerName);
+        if (layer)
+            return layer.nodes.find(node => node.name === nodeName);
+    }
     addNode(layerName: string, node: INode) {
         const layer = this.layers.find(layer => layer.name === layerName);
         if (!layer)
             this.layers.push({ name: layerName, nodes: [node] });
         else {
-            const enode = layer.nodes.find(n => n.name === node.name);
-            if (enode)
-                throw new Error(`Node with name ${node.name} already exists in layer ${layerName}`);
+            const index = layer.nodes.findIndex(n => n.name === node.name);
+            if (index !== -1)
+                layer.nodes.splice(index, 1);
             layer.nodes.push(node);
         }
     }
     remNode(layerName: string, nodeName: string) {
         const layer = this.layers.find(layer => layer.name === layerName);
         if (layer) {
-            const index = layer.nodes.findIndex(node => node.name === nodeName);
+            const index = layer.nodes.findIndex(n => n.name === nodeName);
             if (index !== -1)
                 layer.nodes.splice(index, 1);
         }

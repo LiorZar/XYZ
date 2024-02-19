@@ -31,8 +31,6 @@ class Grid implements INode {
 
     public draw(prog: GLProgram): void {
         prog.bind({ color: this.color });
-
-        gl.lineWidth(10.0);
         this.buffer.Draw(gl.LINES, 4);
 
         prog.bind({ color: Colors.LIME });

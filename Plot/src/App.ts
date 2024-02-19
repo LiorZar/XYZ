@@ -1,9 +1,11 @@
 /// <reference path="Canvas.ts" />
 /// <reference path="Shaders.ts" />
+/// <reference path="FileSystemAccess.ts" />
 /// <reference path="Nodes/RNode.ts" />
 /// <reference path="Nodes/Grid.ts" />
 /// <reference path="Nodes/Quad.ts" />
 /// <reference path="Nodes/Lines.ts" />
+/// <reference path="Nodes/Signal.ts" />
 
 const RESOLUTION: number = 0.1;
 const MOVE_STEP: number = 0.1;
@@ -27,8 +29,9 @@ class App {
         const grid = new Grid("grid", 8);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
         canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
+        canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
+
     }
     private resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
@@ -44,7 +47,7 @@ class App {
         return true;
     }
 
-    public drawScene() { // Code to draw the scene goes here }       
+    public drawScene() {
         this.resizeCanvasToDisplaySize();
         canvas.clear();
 
@@ -83,7 +86,17 @@ class App {
             case "right": this.Translate(1, 0); break;
             case "up": this.Translate(0, 1); break;
             case "down": this.Translate(0, -1); break;
+            case "dir": fs.RequestDirectoryAccess(); break;
+            case "file": fs.ListenToFile("tmp.bin", (data: any) => { this.onFile("tmp.bin", data); }); break;
         }
+    }
+    private onFile(name: string, data: any) {
+        console.log("onFile", data);
+        const node: Signal = canvas.getNode("signals", name) as Signal;
+        if (node)
+            node.update(data);
+        else
+            canvas.addNode("signals", new Signal(name, data));
     }
 }
 
