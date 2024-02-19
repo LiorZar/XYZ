@@ -1,2 +1,2 @@
-/// <reference path="src/GL.ts" />
+/// <reference path="src/App.ts" />
 
