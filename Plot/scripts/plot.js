@@ -418,6 +418,21 @@ class glo {
             return this.ToResH(val * mul, res);
         return this.ToResL(val * mul, res);
     }
+    static ToRGBHex(numbers) {
+        const r = numbers[0] * 255.0;
+        const g = numbers[1] * 255.0;
+        const b = numbers[2] * 255.0;
+        let hex = ((r << 16) | (g << 8) | b).toString(16);
+        while (hex.length < 6)
+            hex = '0' + hex;
+        return '#' + hex;
+    }
+    static HexToRGB(hex) {
+        const r = parseInt(hex.substring(1, 3), 16) / 255.0;
+        const g = parseInt(hex.substring(3, 5), 16) / 255.0;
+        const b = parseInt(hex.substring(5, 7), 16) / 255.0;
+        return [r, g, b, 1];
+    }
 }
 glo.bal = {};
 /// <reference path="glo.ts" />
@@ -607,7 +622,9 @@ class Lines {
 /// <reference path="../Buffer.ts" />
 /// <reference path="../Colors.ts" />
 class Signal {
-    constructor(name, data, comp = 1, stride = 1, width = 20, color = [1, 1, 0, 1]) {
+    constructor(name, data, comp = 1, stride = 1, width = 40, color = [1, 1, 0, 1]) {
+        this.offset = 0;
+        this.scale = 0;
         this.name = name;
         this.shader = 'reg';
         this.comp = comp;
@@ -655,6 +672,12 @@ class App {
             uScale: 1.0,
             uTranslate: [0.0, 0.0]
         };
+        this.signalBox = document.getElementById("signalBox");
+        this.signalColor = document.getElementById("signalColor");
+        this.inputBox = document.getElementById("input-box");
+        this.spinScale = document.getElementById("spinScale");
+        this.spinOffset = document.getElementById("spinOffset");
+        this.selectedSignal = "";
         const vertexData = [
             // Position    // Color
             -0.5, 0.5, 1.0, 0.0, 0.0, 1.0,
@@ -665,8 +688,13 @@ class App {
         const grid = new Grid("grid", 8);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -10.0, 10]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
+        this.signalBox.innerHTML = "";
+        // this.inputBox.textContent = "";
+        this.spinScale.value = "";
+        this.spinOffset.value = "";
+        this.signalColor.value = "#00FF00";
     }
     resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
@@ -736,13 +764,51 @@ class App {
                 break;
         }
     }
+    onChange(name, value) {
+        console.log("onChange", name, value);
+        switch (name) {
+            case "file":
+                fs.ListenToFile(value, (data) => { this.onFile(value, data); });
+                break;
+            case "signal":
+                this.SelectSignal(value);
+                break;
+            case "color":
+                if (this.signal)
+                    this.signal.color = glo.HexToRGB(value);
+                break;
+            case "scale":
+                this.Scale(value);
+                break;
+            case "offset":
+                this.Translate(value, 0);
+                break;
+        }
+    }
     onFile(name, data) {
         console.log("onFile", data);
         const node = canvas.getNode("signals", name);
         if (node)
             node.update(data);
-        else
+        else {
+            this.signalBox.innerHTML += `<option value="${name}">${name}</option>`;
             canvas.addNode("signals", new Signal(name, data));
+            this.SelectSignal(name);
+        }
+    }
+    SelectSignal(name) {
+        this.selectedSignal = name;
+        this.signal = canvas.getNode("signals", name);
+        if (this.signal) {
+            this.signalColor.value = glo.ToRGBHex(this.signal.color);
+            this.spinScale.value = this.signal.scale.toString();
+            this.spinOffset.value = this.signal.offset.toString();
+        }
+        else {
+            this.signalColor.value = "#000000";
+            this.spinScale.value = "";
+            this.spinOffset.value = "";
+        }
     }
 }
 const app = new App();

@@ -17,6 +17,13 @@ class App {
         uScale: 1.0,
         uTranslate: [0.0, 0.0]
     }
+    private signalBox: HTMLSelectElement = document.getElementById("signalBox") as HTMLSelectElement;
+    private signalColor: HTMLInputElement = document.getElementById("signalColor") as HTMLInputElement;
+    private inputBox: HTMLInputElement = document.getElementById("input-box") as HTMLInputElement;
+    private spinScale: HTMLInputElement = document.getElementById("spinScale") as HTMLInputElement;
+    private spinOffset: HTMLInputElement = document.getElementById("spinOffset") as HTMLInputElement;
+    private selectedSignal: string = "";
+    private signal: Signal | undefined;
 
     constructor() {
         const vertexData = [
@@ -29,8 +36,14 @@ class App {
         const grid = new Grid("grid", 8);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 10]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -10.0, 10]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
+
+        this.signalBox.innerHTML = "";
+        // this.inputBox.textContent = "";
+        this.spinScale.value = "";
+        this.spinOffset.value = "";
+        this.signalColor.value = "#00FF00";
 
     }
     private resizeCanvasToDisplaySize(force = false) {
@@ -90,13 +103,40 @@ class App {
             case "file": fs.ListenToFile("tmp.bin", (data: any) => { this.onFile("tmp.bin", data); }); break;
         }
     }
+    public onChange(name: string, value?: any) {
+        console.log("onChange", name, value);
+        switch (name) {
+            case "file": fs.ListenToFile(value, (data: any) => { this.onFile(value, data); }); break;
+            case "signal": this.SelectSignal(value); break;
+            case "color": if (this.signal) this.signal.color = glo.HexToRGB(value); break;
+            case "scale": this.Scale(value); break;
+            case "offset": this.Translate(value, 0); break;
+        }
+    }
     private onFile(name: string, data: any) {
         console.log("onFile", data);
         const node: Signal = canvas.getNode("signals", name) as Signal;
         if (node)
             node.update(data);
-        else
+        else {
+            this.signalBox.innerHTML += `<option value="${name}">${name}</option>`;
             canvas.addNode("signals", new Signal(name, data));
+            this.SelectSignal(name);
+        }
+    }
+    private SelectSignal(name: string) {
+        this.selectedSignal = name;
+        this.signal = canvas.getNode("signals", name) as Signal;
+        if (this.signal) {
+            this.signalColor.value = glo.ToRGBHex(this.signal.color);
+            this.spinScale.value = this.signal.scale.toString();
+            this.spinOffset.value = this.signal.offset.toString();
+        }
+        else {
+            this.signalColor.value = "#000000";
+            this.spinScale.value = "";
+            this.spinOffset.value = "";
+        }
     }
 }
 

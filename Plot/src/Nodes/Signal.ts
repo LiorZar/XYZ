@@ -8,12 +8,15 @@ class Signal implements INode {
     public name: string;
     public shader: string;
     private buffer: GLBuffer;
-    private comp: number;
-    private stride: number;
-    private width: number;
-    private color: number[];
 
-    constructor(name: string, data: ArrayBuffer, comp: number = 1, stride: number = 1, width: number = 20, color: number[] = [1, 1, 0, 1]) {
+    public comp: number;
+    public stride: number;
+    public width: number;
+    public offset: number = 0;
+    public scale: number = 0;
+    public color: number[];
+
+    constructor(name: string, data: ArrayBuffer, comp: number = 1, stride: number = 1, width: number = 40, color: number[] = [1, 1, 0, 1]) {
         this.name = name;
         this.shader = 'reg';
         this.comp = comp;
