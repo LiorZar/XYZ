@@ -7,7 +7,7 @@
 /// <reference path="Nodes/Lines.ts" />
 /// <reference path="Nodes/Signal.ts" />
 
-const RESOLUTION: number = 0.1;
+const RESOLUTION: number = 0.01;
 const MOVE_STEP: number = 0.1;
 
 class App {
@@ -27,7 +27,16 @@ class App {
     private spinStride: HTMLInputElement = document.getElementById("spinStride") as HTMLInputElement;
     private signal: Signal | undefined;
 
+    private isMouseDown: boolean = false;
+    private lastMouseX: number = 0;
+    private lastMouseY: number = 0;
+
     constructor() {
+        canvasDiv.addEventListener("mousedown", this.onMouseDown.bind(this));
+        canvasDiv.addEventListener("mousemove", this.onMouseMove.bind(this));
+        canvasDiv.addEventListener("mouseup", this.onMouseUp.bind(this));
+        canvasDiv.addEventListener("wheel", this.onMouseWheel.bind(this));
+
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
         canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
@@ -148,8 +157,45 @@ class App {
         }
     }
 
-}
+    private onMouseDown(event: MouseEvent) {
+        this.isMouseDown = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
 
+    private onMouseMove(event: MouseEvent) {
+        if (!this.isMouseDown) return;
+
+        const deltaX = event.clientX - this.lastMouseX;
+        const deltaY = event.clientY - this.lastMouseY;
+
+        if (event.ctrlKey) {
+            // Scale
+            const scaleFactor = Math.exp(deltaY * RESOLUTION * 0.5);
+            this.Scale(scaleFactor);
+        }
+        else {
+            // Translate
+            const translateX = deltaX * MOVE_STEP;
+            const translateY = deltaY * MOVE_STEP;
+            this.Translate(translateX, -translateY);
+        }
+
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
+
+    private onMouseUp() {
+        this.isMouseDown = false;
+    }
+
+    private onMouseWheel(event: WheelEvent) {
+        event.preventDefault();
+
+        const scaleFactor = Math.exp(event.deltaY * RESOLUTION * 0.1);
+        this.Scale(scaleFactor);
+    }
+}
 const app: App = new App();
 function renderLoop() {
     // console.log('renderLoop');

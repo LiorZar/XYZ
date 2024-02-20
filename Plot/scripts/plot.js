@@ -694,7 +694,7 @@ class Signal {
 /// <reference path="Nodes/Quad.ts" />
 /// <reference path="Nodes/Lines.ts" />
 /// <reference path="Nodes/Signal.ts" />
-const RESOLUTION = 0.1;
+const RESOLUTION = 0.01;
 const MOVE_STEP = 0.1;
 class App {
     constructor() {
@@ -712,6 +712,13 @@ class App {
         this.spinOffset = document.getElementById("spinOffset");
         this.spinComp = document.getElementById("spinComp");
         this.spinStride = document.getElementById("spinStride");
+        this.isMouseDown = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        canvasDiv.addEventListener("mousedown", this.onMouseDown.bind(this));
+        canvasDiv.addEventListener("mousemove", this.onMouseMove.bind(this));
+        canvasDiv.addEventListener("mouseup", this.onMouseUp.bind(this));
+        canvasDiv.addEventListener("wheel", this.onMouseWheel.bind(this));
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
         canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
@@ -852,6 +859,38 @@ class App {
             this.spinComp.value = "";
             this.spinStride.value = "";
         }
+    }
+    onMouseDown(event) {
+        this.isMouseDown = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
+    onMouseMove(event) {
+        if (!this.isMouseDown)
+            return;
+        const deltaX = event.clientX - this.lastMouseX;
+        const deltaY = event.clientY - this.lastMouseY;
+        if (event.ctrlKey) {
+            // Scale
+            const scaleFactor = Math.exp(deltaY * RESOLUTION * 0.5);
+            this.Scale(scaleFactor);
+        }
+        else {
+            // Translate
+            const translateX = deltaX * MOVE_STEP;
+            const translateY = deltaY * MOVE_STEP;
+            this.Translate(translateX, -translateY);
+        }
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
+    onMouseUp() {
+        this.isMouseDown = false;
+    }
+    onMouseWheel(event) {
+        event.preventDefault();
+        const scaleFactor = Math.exp(event.deltaY * RESOLUTION * 0.1);
+        this.Scale(scaleFactor);
     }
 }
 const app = new App();
