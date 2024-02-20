@@ -93,6 +93,12 @@
 					<label for="inputBox">Offset:</label>
 					<input type="number" id="spinOffset" onchange="app.onChange('offset', this.value*1.0)" />
 				</div>
+				<select id="shaderBox" onchange="app.onChange('shader', this.value)">
+					<option value="signal">Signal</option>
+					<option value="energy">Energy</option>
+					<option value="magnitude">Magnitude</option>
+					<option value="derivative">Derivative</option>
+				</select>
 			</div>
 			<div class="resizer"></div>
 			<div class="canvas-container">

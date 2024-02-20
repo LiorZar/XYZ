@@ -18,6 +18,7 @@ class App {
         uTranslate: [0.0, 0.0]
     }
     private signalBox: HTMLSelectElement = document.getElementById("signalBox") as HTMLSelectElement;
+    private shaderBox: HTMLSelectElement = document.getElementById("shaderBox") as HTMLSelectElement;
     private signalColor: HTMLInputElement = document.getElementById("signalColor") as HTMLInputElement;
     private enableCheckbox: HTMLInputElement = document.getElementById("enableCheckbox") as HTMLInputElement;
     private spinScale: HTMLInputElement = document.getElementById("spinScale") as HTMLInputElement;
@@ -108,6 +109,7 @@ class App {
         switch (name) {
             case "file": fs.ListenToFile(value, (data: any) => { this.onFile(value, data); }); break;
             case "signal": this.SelectSignal(value); break;
+            case "shader": if (signal) signal.shader = value; break;
             case "color": if (signal) signal.color = glo.HexToRGB(value); break;
             case "scale": if (signal) signal.scale[1] = value; break;
             case "width": if (signal) signal.scale[0] = value; break;
@@ -146,6 +148,8 @@ class App {
     private SelectSignal(name: string) {
         this.signal = canvas.getNode("signals", name) as Signal;
         if (this.signal) {
+            this.signalBox.value = this.signal.name;
+            this.shaderBox.value = this.signal.shader;
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
             this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();
@@ -155,6 +159,8 @@ class App {
             this.spinStride.value = this.signal.stride.toString();
         }
         else {
+            this.signalBox.value = "";
+            this.shaderBox.value = "";
             this.signalColor.value = "#000000";
             this.enableCheckbox.checked = false;
             this.spinScale.value = "";

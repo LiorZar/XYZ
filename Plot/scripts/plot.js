@@ -293,12 +293,81 @@ void main()
 }
 `
 };
+const shader_energy = {
+    vert: `
+in vec2 position;
+
+uniform vec2 uModelScale;
+
+void main()
+{
+    gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
+const shader_derivative = {
+    vert: `
+in vec2 position;
+
+uniform vec2 uModelScale;
+
+void main()
+{
+    gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
+const shader_magnitude = {
+    vert: `
+in vec2 position;
+
+uniform vec2 uModelScale;
+
+void main()
+{
+    gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
 /// <reference path="shaders/reg.ts" />
 /// <reference path="shaders/regc.ts" />
 /// <reference path="shaders/grid.ts" />
 /// <reference path="shaders/signal.ts" />
+/// <reference path="shaders/energy.ts" />
+/// <reference path="shaders/derivative.ts" />
+/// <reference path="shaders/magnitude.ts" />
 class ShaderMap {
     constructor() {
         this.shaders = new Map();
@@ -326,6 +395,9 @@ shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
 shaders.addProgram('regc', shader_regc.vert, shader_regc.frag);
 shaders.addProgram('grid', shader_grid.vert, shader_grid.frag);
 shaders.addProgram('signal', shader_signal.vert, shader_signal.frag);
+shaders.addProgram('energy', shader_energy.vert, shader_energy.frag);
+shaders.addProgram('derivative', shader_derivative.vert, shader_derivative.frag);
+shaders.addProgram('magnitude', shader_magnitude.vert, shader_magnitude.frag);
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -708,6 +780,7 @@ class App {
             uTranslate: [0.0, 0.0]
         };
         this.signalBox = document.getElementById("signalBox");
+        this.shaderBox = document.getElementById("shaderBox");
         this.signalColor = document.getElementById("signalColor");
         this.enableCheckbox = document.getElementById("enableCheckbox");
         this.spinScale = document.getElementById("spinScale");
@@ -806,6 +879,10 @@ class App {
             case "signal":
                 this.SelectSignal(value);
                 break;
+            case "shader":
+                if (signal)
+                    signal.shader = value;
+                break;
             case "color":
                 if (signal)
                     signal.color = glo.HexToRGB(value);
@@ -856,6 +933,8 @@ class App {
     SelectSignal(name) {
         this.signal = canvas.getNode("signals", name);
         if (this.signal) {
+            this.signalBox.value = this.signal.name;
+            this.shaderBox.value = this.signal.shader;
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
             this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();
@@ -865,6 +944,8 @@ class App {
             this.spinStride.value = this.signal.stride.toString();
         }
         else {
+            this.signalBox.value = "";
+            this.shaderBox.value = "";
             this.signalColor.value = "#000000";
             this.enableCheckbox.checked = false;
             this.spinScale.value = "";
