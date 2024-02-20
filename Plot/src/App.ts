@@ -28,25 +28,12 @@ class App {
     private signal: Signal | undefined;
 
     constructor() {
-        const vertexData = [
-            // Position    // Color
-            -0.5, 0.5, 1.0, 0.0, 0.0, 1.0, // Top left (red)
-            0.5, 0.5, 0.0, 1.0, 0.0, 1.0, // Top right (green)
-            -0.5, -0.5, 0.0, 0.0, 1.0, 1.0, // Bottom left (blue)
-            0.5, -0.5, 1.0, 1.0, 0.0, 1.0  // Bottom right (yellow)
-        ];
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
-        // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
         canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
 
         this.signalBox.innerHTML = "";
-        // this.inputBox.textContent = "";
-        this.spinScale.value = "";
-        this.spinOffset.value = "";
-        this.signalColor.value = "#00FF00";
-
     }
     private resizeCanvasToDisplaySize(force = false) {
         const width = canvasDiv.clientWidth;
@@ -160,6 +147,7 @@ class App {
             this.spinStride.value = "";
         }
     }
+
 }
 
 const app: App = new App();
