@@ -15,6 +15,7 @@ class Signal implements INode {
     public offset: number = 0;
     public scale: number[] = [40, 1];
     public color: number[];
+    public enabled: boolean = true;
 
     constructor(name: string, data: ArrayBuffer, comp: number = 1, stride: number = 1, width: number = 40, color: number[] = [1, 1, 0, 1]) {
         this.name = name;
@@ -33,12 +34,12 @@ class Signal implements INode {
     public recreate(): void {
         const fdata = this.rawData;
         const vertexData = [];
-        const { comp, stride } = this;
+        const { comp, stride, offset } = this;
         const cstride = comp * stride;
-        const count = fdata.length / stride;
+        const count = fdata.length / cstride;
         const space: number = 1.0 / count;
         let x = -0.5;
-        for (let i = 0; i < fdata.length; i += cstride) {
+        for (let i = offset; i < fdata.length; i += cstride) {
             vertexData.push(x, fdata[i]);
             x += space;
         }
@@ -49,6 +50,8 @@ class Signal implements INode {
 
     }
     public draw(prog: GLProgram): void {
+        if (!this.enabled)
+            return;
         prog.bind({
             color: this.color,
             uModelScale: this.scale

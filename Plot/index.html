@@ -64,6 +64,10 @@
 					<option value="option3">Option 3</option>
 				</select>
 				<input type="color" id="signalColor" onchange="app.onChange('color', this.value)" />
+				<div class="input-container">
+					<label for="inputBox">Visibility:</label>
+					<input type="checkbox" id="enableCheckbox" onchange="app.onChange('enable', this.checked)" />
+				</div>
 
 				<div class="input-container">
 					<label for="inputBox">File:</label>
@@ -71,23 +75,23 @@
 				</div>
 				<div class="input-container">
 					<label for="inputBox">Comp:</label>
-					<input type="number" id="spinComp" onchange="app.onChange('comp', this.value)" />
+					<input type="number" id="spinComp" onchange="app.onChange('comp', this.value*1.0)" />
 				</div>
 				<div class="input-container">
 					<label for="inputBox">Stride:</label>
-					<input type="number" id="spinStride" onchange="app.onChange('stride', this.value)" />
+					<input type="number" id="spinStride" onchange="app.onChange('stride', this.value*1.0)" />
 				</div>
 				<div class="input-container">
 					<label for="inputBox">Width:</label>
-					<input type="number" id="spinWidth" onchange="app.onChange('width', this.value)" />
+					<input type="number" id="spinWidth" onchange="app.onChange('width', this.value*1.0)" />
 				</div>
 				<div class="input-container">
 					<label for="inputBox">Scale:</label>
-					<input type="number" id="spinScale" onchange="app.onChange('scale', this.value)" />
+					<input type="number" id="spinScale" onchange="app.onChange('scale', this.value*1.0)" />
 				</div>
 				<div class="input-container">
 					<label for="inputBox">Offset:</label>
-					<input type="number" id="spinOffset" onchange="app.onChange('offset', this.value)" />
+					<input type="number" id="spinOffset" onchange="app.onChange('offset', this.value*1.0)" />
 				</div>
 			</div>
 			<div class="resizer"></div>

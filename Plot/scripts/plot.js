@@ -649,6 +649,7 @@ class Signal {
     constructor(name, data, comp = 1, stride = 1, width = 40, color = [1, 1, 0, 1]) {
         this.offset = 0;
         this.scale = [40, 1];
+        this.enabled = true;
         this.name = name;
         this.shader = 'signal';
         this.comp = comp;
@@ -665,12 +666,12 @@ class Signal {
     recreate() {
         const fdata = this.rawData;
         const vertexData = [];
-        const { comp, stride } = this;
+        const { comp, stride, offset } = this;
         const cstride = comp * stride;
-        const count = fdata.length / stride;
+        const count = fdata.length / cstride;
         const space = 1.0 / count;
         let x = -0.5;
-        for (let i = 0; i < fdata.length; i += cstride) {
+        for (let i = offset; i < fdata.length; i += cstride) {
             vertexData.push(x, fdata[i]);
             x += space;
         }
@@ -679,6 +680,8 @@ class Signal {
         this.buffer = buffer;
     }
     draw(prog) {
+        if (!this.enabled)
+            return;
         prog.bind({
             color: this.color,
             uModelScale: this.scale
@@ -706,7 +709,7 @@ class App {
         };
         this.signalBox = document.getElementById("signalBox");
         this.signalColor = document.getElementById("signalColor");
-        this.inputBox = document.getElementById("input-box");
+        this.enableCheckbox = document.getElementById("enableCheckbox");
         this.spinScale = document.getElementById("spinScale");
         this.spinWidth = document.getElementById("spinWidth");
         this.spinOffset = document.getElementById("spinOffset");
@@ -815,6 +818,10 @@ class App {
                 if (signal)
                     signal.scale[0] = value;
                 break;
+            case "enable":
+                if (signal)
+                    signal.enabled = value;
+                break;
             case "stride":
                 if (signal) {
                     signal.stride = value;
@@ -827,7 +834,12 @@ class App {
                     signal.recreate();
                 }
                 break;
-            // case "offset": this.Translate(value, 0); break;
+            case "offset":
+                if (signal) {
+                    signal.offset = value;
+                    signal.recreate();
+                }
+                break;
         }
     }
     onFile(name, data) {
@@ -845,6 +857,7 @@ class App {
         this.signal = canvas.getNode("signals", name);
         if (this.signal) {
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
+            this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();
             this.spinWidth.value = this.signal.scale[0].toString();
             this.spinOffset.value = this.signal.offset.toString();
@@ -853,6 +866,7 @@ class App {
         }
         else {
             this.signalColor.value = "#000000";
+            this.enableCheckbox.checked = false;
             this.spinScale.value = "";
             this.spinWidth.value = "";
             this.spinOffset.value = "";

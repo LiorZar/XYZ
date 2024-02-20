@@ -19,7 +19,7 @@ class App {
     }
     private signalBox: HTMLSelectElement = document.getElementById("signalBox") as HTMLSelectElement;
     private signalColor: HTMLInputElement = document.getElementById("signalColor") as HTMLInputElement;
-    private inputBox: HTMLInputElement = document.getElementById("input-box") as HTMLInputElement;
+    private enableCheckbox: HTMLInputElement = document.getElementById("enableCheckbox") as HTMLInputElement;
     private spinScale: HTMLInputElement = document.getElementById("spinScale") as HTMLInputElement;
     private spinWidth: HTMLInputElement = document.getElementById("spinWidth") as HTMLInputElement;
     private spinOffset: HTMLInputElement = document.getElementById("spinOffset") as HTMLInputElement;
@@ -111,6 +111,7 @@ class App {
             case "color": if (signal) signal.color = glo.HexToRGB(value); break;
             case "scale": if (signal) signal.scale[1] = value; break;
             case "width": if (signal) signal.scale[0] = value; break;
+            case "enable": if (signal) signal.enabled = value; break;
             case "stride":
                 if (signal) {
                     signal.stride = value;
@@ -123,7 +124,12 @@ class App {
                     signal.recreate();
                 }
                 break;
-            // case "offset": this.Translate(value, 0); break;
+            case "offset":
+                if (signal) {
+                    signal.offset = value;
+                    signal.recreate();
+                }
+                break;
         }
     }
     private onFile(name: string, data: any) {
@@ -141,6 +147,7 @@ class App {
         this.signal = canvas.getNode("signals", name) as Signal;
         if (this.signal) {
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
+            this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();
             this.spinWidth.value = this.signal.scale[0].toString();
             this.spinOffset.value = this.signal.offset.toString();
@@ -149,6 +156,7 @@ class App {
         }
         else {
             this.signalColor.value = "#000000";
+            this.enableCheckbox.checked = false;
             this.spinScale.value = "";
             this.spinWidth.value = "";
             this.spinOffset.value = "";
