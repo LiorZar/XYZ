@@ -8,32 +8,37 @@ class Signal implements INode {
     public name: string;
     public shader: string;
     private buffer: GLBuffer;
+    private rawData: Float32Array;
 
     public comp: number;
     public stride: number;
-    public width: number;
     public offset: number = 0;
-    public scale: number = 0;
+    public scale: number[] = [40, 1];
     public color: number[];
 
     constructor(name: string, data: ArrayBuffer, comp: number = 1, stride: number = 1, width: number = 40, color: number[] = [1, 1, 0, 1]) {
         this.name = name;
-        this.shader = 'reg';
+        this.shader = 'signal';
         this.comp = comp;
         this.stride = stride * comp;
-        this.width = width;
+        this.scale = [width, 1];
         this.color = color;
         this.update(data);
     }
     public update(data: ArrayBuffer): void {
         console.log("Signal update");
-        const fdata = new Float32Array(data);
+        this.rawData = new Float32Array(data);
+        this.recreate();
+    }
+    public recreate(): void {
+        const fdata = this.rawData;
         const vertexData = [];
-        const { comp, stride, width } = this;
+        const { comp, stride } = this;
+        const cstride = comp * stride;
         const count = fdata.length / stride;
-        const space: number = width / count;
-        let x = -0.5 * width;
-        for (let i = 0; i < fdata.length; i += stride) {
+        const space: number = 1.0 / count;
+        let x = -0.5;
+        for (let i = 0; i < fdata.length; i += cstride) {
             vertexData.push(x, fdata[i]);
             x += space;
         }
@@ -44,7 +49,10 @@ class Signal implements INode {
 
     }
     public draw(prog: GLProgram): void {
-        prog.bind({ color: this.color });
+        prog.bind({
+            color: this.color,
+            uModelScale: this.scale
+        });
 
         this.buffer.Draw(gl.LINE_STRIP);
     }

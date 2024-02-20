@@ -271,11 +271,34 @@ void main()
 }
 `
 };
+const shader_signal = {
+    vert: `
+in vec2 position;
+
+uniform vec2 uModelScale;
+
+void main()
+{
+    gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
+}
+`,
+    frag: `
+
+uniform vec4 color;
+out vec4 fragColor;
+
+void main() 
+{
+    fragColor = color;
+}
+`
+};
 /// <reference path="Program.ts" />
 /// <reference path="shaders/unf.ts" />
 /// <reference path="shaders/reg.ts" />
 /// <reference path="shaders/regc.ts" />
 /// <reference path="shaders/grid.ts" />
+/// <reference path="shaders/signal.ts" />
 class ShaderMap {
     constructor() {
         this.shaders = new Map();
@@ -302,6 +325,7 @@ const shaders = new ShaderMap();
 shaders.addProgram('reg', shader_reg.vert, shader_reg.frag);
 shaders.addProgram('regc', shader_regc.vert, shader_regc.frag);
 shaders.addProgram('grid', shader_grid.vert, shader_grid.frag);
+shaders.addProgram('signal', shader_signal.vert, shader_signal.frag);
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -624,24 +648,29 @@ class Lines {
 class Signal {
     constructor(name, data, comp = 1, stride = 1, width = 40, color = [1, 1, 0, 1]) {
         this.offset = 0;
-        this.scale = 0;
+        this.scale = [40, 1];
         this.name = name;
-        this.shader = 'reg';
+        this.shader = 'signal';
         this.comp = comp;
         this.stride = stride * comp;
-        this.width = width;
+        this.scale = [width, 1];
         this.color = color;
         this.update(data);
     }
     update(data) {
         console.log("Signal update");
-        const fdata = new Float32Array(data);
+        this.rawData = new Float32Array(data);
+        this.recreate();
+    }
+    recreate() {
+        const fdata = this.rawData;
         const vertexData = [];
-        const { comp, stride, width } = this;
+        const { comp, stride } = this;
+        const cstride = comp * stride;
         const count = fdata.length / stride;
-        const space = width / count;
-        let x = -0.5 * width;
-        for (let i = 0; i < fdata.length; i += stride) {
+        const space = 1.0 / count;
+        let x = -0.5;
+        for (let i = 0; i < fdata.length; i += cstride) {
             vertexData.push(x, fdata[i]);
             x += space;
         }
@@ -650,7 +679,10 @@ class Signal {
         this.buffer = buffer;
     }
     draw(prog) {
-        prog.bind({ color: this.color });
+        prog.bind({
+            color: this.color,
+            uModelScale: this.scale
+        });
         this.buffer.Draw(gl.LINE_STRIP);
     }
 }
@@ -676,8 +708,10 @@ class App {
         this.signalColor = document.getElementById("signalColor");
         this.inputBox = document.getElementById("input-box");
         this.spinScale = document.getElementById("spinScale");
+        this.spinWidth = document.getElementById("spinWidth");
         this.spinOffset = document.getElementById("spinOffset");
-        this.selectedSignal = "";
+        this.spinComp = document.getElementById("spinComp");
+        this.spinStride = document.getElementById("spinStride");
         const vertexData = [
             // Position    // Color
             -0.5, 0.5, 1.0, 0.0, 0.0, 1.0,
@@ -685,10 +719,10 @@ class App {
             -0.5, -0.5, 0.0, 0.0, 1.0, 1.0,
             0.5, -0.5, 1.0, 1.0, 0.0, 1.0 // Bottom right (yellow)
         ];
-        const grid = new Grid("grid", 8);
+        const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -10.0, 10]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
         this.signalBox.innerHTML = "";
         // this.inputBox.textContent = "";
@@ -766,6 +800,7 @@ class App {
     }
     onChange(name, value) {
         console.log("onChange", name, value);
+        const { signal } = this;
         switch (name) {
             case "file":
                 fs.ListenToFile(value, (data) => { this.onFile(value, data); });
@@ -774,15 +809,30 @@ class App {
                 this.SelectSignal(value);
                 break;
             case "color":
-                if (this.signal)
-                    this.signal.color = glo.HexToRGB(value);
+                if (signal)
+                    signal.color = glo.HexToRGB(value);
                 break;
             case "scale":
-                this.Scale(value);
+                if (signal)
+                    signal.scale[1] = value;
                 break;
-            case "offset":
-                this.Translate(value, 0);
+            case "width":
+                if (signal)
+                    signal.scale[0] = value;
                 break;
+            case "stride":
+                if (signal) {
+                    signal.stride = value;
+                    signal.recreate();
+                }
+                break;
+            case "comp":
+                if (signal) {
+                    signal.comp = value;
+                    signal.recreate();
+                }
+                break;
+            // case "offset": this.Translate(value, 0); break;
         }
     }
     onFile(name, data) {
@@ -797,17 +847,22 @@ class App {
         }
     }
     SelectSignal(name) {
-        this.selectedSignal = name;
         this.signal = canvas.getNode("signals", name);
         if (this.signal) {
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
-            this.spinScale.value = this.signal.scale.toString();
+            this.spinScale.value = this.signal.scale[1].toString();
+            this.spinWidth.value = this.signal.scale[0].toString();
             this.spinOffset.value = this.signal.offset.toString();
+            this.spinComp.value = this.signal.comp.toString();
+            this.spinStride.value = this.signal.stride.toString();
         }
         else {
             this.signalColor.value = "#000000";
             this.spinScale.value = "";
+            this.spinWidth.value = "";
             this.spinOffset.value = "";
+            this.spinComp.value = "";
+            this.spinStride.value = "";
         }
     }
 }

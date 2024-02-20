@@ -21,8 +21,10 @@ class App {
     private signalColor: HTMLInputElement = document.getElementById("signalColor") as HTMLInputElement;
     private inputBox: HTMLInputElement = document.getElementById("input-box") as HTMLInputElement;
     private spinScale: HTMLInputElement = document.getElementById("spinScale") as HTMLInputElement;
+    private spinWidth: HTMLInputElement = document.getElementById("spinWidth") as HTMLInputElement;
     private spinOffset: HTMLInputElement = document.getElementById("spinOffset") as HTMLInputElement;
-    private selectedSignal: string = "";
+    private spinComp: HTMLInputElement = document.getElementById("spinComp") as HTMLInputElement;
+    private spinStride: HTMLInputElement = document.getElementById("spinStride") as HTMLInputElement;
     private signal: Signal | undefined;
 
     constructor() {
@@ -33,10 +35,10 @@ class App {
             -0.5, -0.5, 0.0, 0.0, 1.0, 1.0, // Bottom left (blue)
             0.5, -0.5, 1.0, 1.0, 0.0, 1.0  // Bottom right (yellow)
         ];
-        const grid = new Grid("grid", 8);
+        const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
         // canvas.addNode("bk", new RNode("node1", "regc", vertexData, [2, 4]));
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -10.0, 10]));
+        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
 
         this.signalBox.innerHTML = "";
@@ -105,12 +107,27 @@ class App {
     }
     public onChange(name: string, value?: any) {
         console.log("onChange", name, value);
+        const { signal } = this;
+
         switch (name) {
             case "file": fs.ListenToFile(value, (data: any) => { this.onFile(value, data); }); break;
             case "signal": this.SelectSignal(value); break;
-            case "color": if (this.signal) this.signal.color = glo.HexToRGB(value); break;
-            case "scale": this.Scale(value); break;
-            case "offset": this.Translate(value, 0); break;
+            case "color": if (signal) signal.color = glo.HexToRGB(value); break;
+            case "scale": if (signal) signal.scale[1] = value; break;
+            case "width": if (signal) signal.scale[0] = value; break;
+            case "stride":
+                if (signal) {
+                    signal.stride = value;
+                    signal.recreate();
+                }
+                break;
+            case "comp":
+                if (signal) {
+                    signal.comp = value;
+                    signal.recreate();
+                }
+                break;
+            // case "offset": this.Translate(value, 0); break;
         }
     }
     private onFile(name: string, data: any) {
@@ -125,17 +142,22 @@ class App {
         }
     }
     private SelectSignal(name: string) {
-        this.selectedSignal = name;
         this.signal = canvas.getNode("signals", name) as Signal;
         if (this.signal) {
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
-            this.spinScale.value = this.signal.scale.toString();
+            this.spinScale.value = this.signal.scale[1].toString();
+            this.spinWidth.value = this.signal.scale[0].toString();
             this.spinOffset.value = this.signal.offset.toString();
+            this.spinComp.value = this.signal.comp.toString();
+            this.spinStride.value = this.signal.stride.toString();
         }
         else {
             this.signalColor.value = "#000000";
             this.spinScale.value = "";
+            this.spinWidth.value = "";
             this.spinOffset.value = "";
+            this.spinComp.value = "";
+            this.spinStride.value = "";
         }
     }
 }
