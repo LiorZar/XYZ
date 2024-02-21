@@ -91,7 +91,14 @@ class Mat3 {
 
         return result;
     }
-
+    public translate(x: number, y: number): void {
+        const translation = Mat3.translation(x, y);
+        this.fromArray(this.mul(translation).data);
+    }
+    public scale(x: number, y: number): void {
+        const scale = Mat3.scale(x, y);
+        this.fromArray(this.mul(scale).data);
+    }
     public static identity(): Mat3 {
         const result = new Mat3();
         result.Set(0, 0, 1);

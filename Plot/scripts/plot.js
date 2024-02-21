@@ -130,6 +130,14 @@ class Mat3 {
         result.Set(2, 2, (this.Get(0, 0) * this.Get(1, 1) - this.Get(0, 1) * this.Get(1, 0)) * invDet);
         return result;
     }
+    translate(x, y) {
+        const translation = Mat3.translation(x, y);
+        this.fromArray(this.mul(translation).data);
+    }
+    scale(x, y) {
+        const scale = Mat3.scale(x, y);
+        this.fromArray(this.mul(scale).data);
+    }
     static identity() {
         const result = new Mat3();
         result.Set(0, 0, 1);
@@ -203,7 +211,7 @@ class GLProgram {
         for (let key in data) {
             const value = data[key];
             if (value instanceof Mat3) {
-                this.uniformMatrix3fv(key, false, value.data);
+                this.uniformMatrix3fv(key, true, value.data);
             }
             else if (Array.isArray(value)) {
                 switch (value.length) {
@@ -220,10 +228,10 @@ class GLProgram {
                         this.uniform4f(key, value[0], value[1], value[2], value[3]);
                         break;
                     case 9:
-                        this.uniformMatrix3fv(key, false, value);
+                        this.uniformMatrix3fv(key, true, value);
                         break;
                     case 16:
-                        this.uniformMatrix4fv(key, false, value);
+                        this.uniformMatrix4fv(key, true, value);
                         break;
                 }
             }
@@ -290,32 +298,17 @@ uniform vec2 uResolution;
 uniform vec4 uGrid;
 uniform float uScale;   
 uniform vec2 uTranslate;
-// unfiorm mat3 uModelMatrix;
+uniform mat3 uModelMatrix;
 uniform mat3 uProjectionMatrix;
 
-mat3 ModelMatrix()
-{
-    float aspect = uResolution.x / uResolution.y;
-    float sx = uScale;
-    float sy = uScale;
-    if (aspect > 1.f)
-        sx /= aspect;
-    else
-        sy *= aspect;
-    return mat3
-    (
-        sx, 0.f, 0.f,
-        0.f, sy, 0.f,
-        uTranslate.x, uTranslate.y, 1.f
-    );
-}
+
 vec2 ModelPosition(vec2 position)
 {
-    return (ModelMatrix() * vec3(position, 1.f)).xy;
+    return (uModelMatrix * vec3(position, 1.f)).xy;
 }
 vec2 ModelProjectionPosition(vec2 position)
 {
-    vec3 pos = uProjectionMatrix * ModelMatrix() * vec3(position, 1.f);
+    vec3 pos = uProjectionMatrix * uModelMatrix * vec3(position, 1.f);
     return pos.xy / pos.z;
 }
 
@@ -985,7 +978,9 @@ class App {
             uScale: 1.0,
             uTranslate: [0.0, 0.0],
             uModelMatrix: Mat3.identity(),
-            uProjectionMatrix: Mat3.identity()
+            uProjectionMatrix: Mat3.identity(),
+            uModelProjectionMatrix: Mat3.identity(),
+            uInverseModelProjectionMatrix: Mat3.identity()
         };
         this.signalBox = document.getElementById("signalBox");
         this.shaderBox = document.getElementById("shaderBox");
@@ -1005,6 +1000,7 @@ class App {
         canvasDiv.addEventListener("mousemove", this.onMouseMove.bind(this));
         canvasDiv.addEventListener("mouseup", this.onMouseUp.bind(this));
         canvasDiv.addEventListener("wheel", this.onMouseWheel.bind(this));
+        window.addEventListener("keypress", this.onKeyDown.bind(this));
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
         canvas.addNode("elems", new Lines("node3", "reg", [-1, 1, 2, 5, 3, 8]));
@@ -1022,13 +1018,19 @@ class App {
         gl.viewport(0, 0, width, height);
         unfData.uResolution[0] = width;
         unfData.uResolution[1] = height;
-        this.aspect = width / height;
-        const rl = 1.0 / (unfData.uGrid[1] - unfData.uGrid[0]);
-        const tb = 1.0 / (unfData.uGrid[3] - unfData.uGrid[2]);
-        const tx = -(unfData.uGrid[1] + unfData.uGrid[0]) * rl;
-        const ty = -(unfData.uGrid[3] + unfData.uGrid[2]) * tb;
+        const aspectRatio = width / height;
+        this.aspect = aspectRatio;
+        let sx = 1.0, sy = 1.0;
+        if (aspectRatio > 1)
+            sx /= aspectRatio;
+        else
+            sy *= aspectRatio;
+        const rl = sx / (unfData.uGrid[1] - unfData.uGrid[0]);
+        const tb = sy / (unfData.uGrid[3] - unfData.uGrid[2]);
+        const tx = sx * -(unfData.uGrid[1] + unfData.uGrid[0]) * rl;
+        const ty = sy * -(unfData.uGrid[3] + unfData.uGrid[2]) * tb;
         unfData.uProjectionMatrix.fromArray([2.0 * rl, 0.0, 0.0, 0.0, 2.0 * tb, 0.0, tx, ty, 1.0]);
-        return true;
+        this.refreshMVP();
     }
     drawScene() {
         this.resizeCanvasToDisplaySize();
@@ -1049,18 +1051,22 @@ class App {
     Scale(factor) {
         if (factor < 0)
             return;
-        this.unfData.uScale = Math.max(RESOLUTION, glo.MulRes(this.unfData.uScale, factor, RESOLUTION));
-        this.scaleX = this.scaleY = this.unfData.uScale;
-        if (this.aspect > 1)
-            this.scaleX /= this.aspect;
-        else
-            this.scaleY *= this.aspect;
-        console.log("Scale", this.unfData.uScale);
+        this.unfData.uModelMatrix.scale(factor, factor);
+        this.refreshMVP();
     }
     Translate(x, y) {
-        this.unfData.uTranslate[0] = glo.AddRes(this.unfData.uTranslate[0], x * MOVE_STEP, RESOLUTION);
-        this.unfData.uTranslate[1] = glo.AddRes(this.unfData.uTranslate[1], y * MOVE_STEP, RESOLUTION);
-        console.log("Translate", this.unfData.uTranslate);
+        this.unfData.uModelMatrix.translate(x, y);
+        this.refreshMVP();
+    }
+    resetModelMatrix() {
+        const { unfData } = this;
+        unfData.uModelMatrix.fromArray([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        this.refreshMVP();
+    }
+    refreshMVP() {
+        const { unfData } = this;
+        unfData.uModelProjectionMatrix = unfData.uProjectionMatrix.mul(unfData.uModelMatrix);
+        unfData.uInverseModelProjectionMatrix = unfData.uModelProjectionMatrix.inverse();
     }
     onButton(name, value) {
         console.log("onButton", name);
@@ -1186,26 +1192,26 @@ class App {
             this.spinStride.value = "";
         }
     }
-    ClientToGrid(clientX, clientY) {
-        const { aspect, unfData, scaleX, scaleY } = this;
+    ClientToNDC(clientX, clientY) {
         const rect = canvasDiv.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = rect.bottom - clientY;
-        // Convert pixel to OpenGL world location
-        const glWidth = canvasDiv.width;
-        const glHeight = canvasDiv.height;
-        const ndcX = (x / glWidth) * 2 - 1;
-        const ndcY = (y / glHeight) * 2 - 1;
-        const gridX = (glo.lerpZ(unfData.uGrid[0], unfData.uGrid[1], ndcX) - unfData.uTranslate[0]) / scaleX;
-        const gridY = (glo.lerpZ(unfData.uGrid[2], unfData.uGrid[3], ndcY) - unfData.uTranslate[1]) / scaleY;
-        return [gridX, gridY];
+        const ndcX = (x / canvasDiv.width) * 2 - 1;
+        const ndcY = (y / canvasDiv.height) * 2 - 1;
+        return [ndcX, ndcY];
+    }
+    NDCtoGrid(ndc) {
+        return this.unfData.uInverseModelProjectionMatrix.transformPoint(ndc);
+    }
+    ClientToGrid(clientX, clientY) {
+        const ndc = this.ClientToNDC(clientX, clientY);
+        return this.NDCtoGrid(ndc);
     }
     onMouseDown(event) {
         this.isMouseDown = true;
         this.gridMouse = this.ClientToGrid(event.clientX, event.clientY);
     }
     onMouseMove(event) {
-        // console.log("onMouseMove", event.clientX, event.clientY, this.ClientToGrid(event.clientX, event.clientY));
         if (!this.isMouseDown)
             return;
         const prevGrid = this.gridMouse;
@@ -1231,6 +1237,13 @@ class App {
         event.preventDefault();
         const scaleFactor = Math.exp(event.deltaY * RESOLUTION * 0.1);
         this.Scale(scaleFactor);
+    }
+    onKeyDown(event) {
+        if (event.key === "0") {
+            this.unfData.uScale = 1.0;
+            this.unfData.uTranslate = [0.0, 0.0];
+            this.resetModelMatrix();
+        }
     }
 }
 const app = new App();

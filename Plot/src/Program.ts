@@ -69,7 +69,7 @@ class GLProgram {
             const value = data[key];
 
             if (value instanceof Mat3) {
-                this.uniformMatrix3fv(key, false, value.data);
+                this.uniformMatrix3fv(key, true, value.data);
             }
             else if (Array.isArray(value)) {
                 switch (value.length) {
@@ -86,10 +86,10 @@ class GLProgram {
                         this.uniform4f(key, value[0], value[1], value[2], value[3]);
                         break;
                     case 9:
-                        this.uniformMatrix3fv(key, false, value);
+                        this.uniformMatrix3fv(key, true, value);
                         break;
                     case 16:
-                        this.uniformMatrix4fv(key, false, value);
+                        this.uniformMatrix4fv(key, true, value);
                         break;
                 }
             }
