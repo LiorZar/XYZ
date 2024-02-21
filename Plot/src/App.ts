@@ -203,7 +203,7 @@ class App {
     }
 
     private onMouseMove(event: MouseEvent) {
-        console.log("onMouseMove", event.clientX, event.clientY, this.ClientToGrid(event.clientX, event.clientY));
+        // console.log("onMouseMove", event.clientX, event.clientY, this.ClientToGrid(event.clientX, event.clientY));
         if (!this.isMouseDown) return;
 
         const prevGrid = this.gridMouse;
