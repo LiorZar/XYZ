@@ -118,7 +118,6 @@ class App {
         switch (name) {
             case "file": fs.ListenToFile(value, (data: any) => { this.onFile(value, data); }); break;
             case "signal": this.SelectSignal(value); break;
-            case "shader": if (signal) signal.shader = value; break;
             case "color": if (signal) signal.color = glo.HexToRGB(value); break;
             case "scale": if (signal) signal.scale[1] = value; break;
             case "width": if (signal) signal.scale[0] = value; break;
@@ -127,18 +126,28 @@ class App {
                 if (signal) {
                     signal.stride = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
             case "comp":
                 if (signal) {
                     signal.comp = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
             case "offset":
                 if (signal) {
                     signal.offset = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
+                }
+                break;
+            case "shader":
+                if (signal) {
+                    signal.func = value;
+                    signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
         }
@@ -155,10 +164,13 @@ class App {
         }
     }
     private SelectSignal(name: string) {
-        this.signal = canvas.getNode("signals", name) as Signal;
+        this.SelectSignalNode(canvas.getNode("signals", name) as Signal);
+    }
+    private SelectSignalNode(signal?: Signal) {
+        this.signal = signal;
         if (this.signal) {
             this.signalBox.value = this.signal.name;
-            this.shaderBox.value = this.signal.shader;
+            this.shaderBox.value = this.signal.func;
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
             this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();

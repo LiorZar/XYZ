@@ -274,7 +274,7 @@ void main()
 const shader_signal = {
     vert: `
 
-in float sampleY;
+in float amplitude;
 
 uniform float count;
 uniform vec2 uModelScale;
@@ -282,7 +282,7 @@ uniform vec2 uModelScale;
 void main()
 {
     float x = float(gl_VertexID) / (count-1.0) - 0.5;
-    vec2 position = vec2(x, sampleY);
+    vec2 position = vec2(x, amplitude);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
@@ -299,12 +299,16 @@ void main()
 };
 const shader_energy = {
     vert: `
-in vec2 position;
 
+in float amplitude;
+
+uniform float count;
 uniform vec2 uModelScale;
 
 void main()
 {
+    float x = float(gl_VertexID) / (count-1.0) - 0.5;
+    vec2 position = vec2(x, amplitude);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
@@ -321,12 +325,16 @@ void main()
 };
 const shader_derivative = {
     vert: `
-in vec2 position;
 
+in float amplitude;
+
+uniform float count;
 uniform vec2 uModelScale;
 
 void main()
 {
+    float x = float(gl_VertexID) / (count-1.0) - 0.5;
+    vec2 position = vec2(x, amplitude);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
@@ -343,12 +351,16 @@ void main()
 };
 const shader_magnitude = {
     vert: `
-in vec2 position;
 
+in float amplitude;
+
+uniform float count;
 uniform vec2 uModelScale;
 
 void main()
 {
+    float x = float(gl_VertexID) / (count-1.0) - 0.5;
+    vec2 position = vec2(x, amplitude);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
@@ -734,6 +746,7 @@ class Signal {
         this.enabled = true;
         this.name = name;
         this.shader = 'signal';
+        this.func = 'signal';
         this.comp = comp;
         this.stride = stride * comp;
         this.scale = [width, 1];
@@ -752,14 +765,83 @@ class Signal {
         const cstride = comp * stride;
         const count = fdata.length / cstride;
         const space = 1.0 / count;
-        let x = -0.5;
-        for (let i = offset; i < fdata.length; i += cstride) {
+        for (let i = offset; i < fdata.length; i += cstride)
             vertexData.push(fdata[i]);
-            x += space;
-        }
+        const vData = this.proccess(vertexData);
         const buffer = new GLBuffer();
-        buffer.create(new Float32Array(vertexData), [1], gl.STATIC_DRAW);
+        buffer.create(new Float32Array(vData), [1], gl.STATIC_DRAW);
         this.buffer = buffer;
+    }
+    proccess(vertexData) {
+        const { func } = this;
+        if (func === 'signal') {
+            this.scale[1] = 1.0;
+            return vertexData;
+        }
+        if (func === 'derivative') {
+            const result = [];
+            for (let i = 1; i < vertexData.length; i++)
+                result.push(vertexData[i] - vertexData[i - 1]);
+            this.scale[1] = 1.0;
+            return result;
+        }
+        if (func === 'integral') {
+            const result = [];
+            let sum = 0, maxVal = 0;
+            for (let i = 0; i < vertexData.length; i++) {
+                sum += vertexData[i];
+                if (Math.abs(sum) > maxVal)
+                    maxVal = Math.abs(sum);
+                result.push(sum);
+            }
+            this.scale[1] = 1.0 / maxVal;
+            return result;
+        }
+        if (func === 'average') {
+            const result = [];
+            let sum = 0;
+            for (let i = 0; i < vertexData.length; i++) {
+                sum += vertexData[i];
+                result.push(sum / (i + 1));
+            }
+            this.scale[1] = 1.0;
+            return result;
+        }
+        if (func === 'magnitude') {
+            const result = [];
+            for (let i = 0; i < vertexData.length; i += 2) {
+                const x = vertexData[i];
+                const y = vertexData[i + 1];
+                result.push(Math.sqrt(x * x + y * y));
+            }
+            this.scale[1] = 1.0;
+            return result;
+        }
+        if (func === 'phase') {
+            const result = [];
+            for (let i = 0; i < vertexData.length; i += 2) {
+                const x = vertexData[i];
+                const y = vertexData[i + 1];
+                result.push(Math.atan2(y, x));
+            }
+            this.scale[1] = 1.0;
+            return result;
+        }
+        if (func === 'energy') {
+            let e = 0, maxVal = 0;
+            const result = [];
+            for (let i = 0; i < vertexData.length; i += 2) {
+                const x = vertexData[i];
+                const y = vertexData[i + 1];
+                e += x * x + y * y;
+                if (e > maxVal)
+                    maxVal = e;
+                result.push(e);
+            }
+            this.scale[1] = 1.0 / maxVal;
+            return result;
+        }
+        return vertexData;
     }
     draw(prog) {
         if (!this.enabled)
@@ -898,10 +980,6 @@ class App {
             case "signal":
                 this.SelectSignal(value);
                 break;
-            case "shader":
-                if (signal)
-                    signal.shader = value;
-                break;
             case "color":
                 if (signal)
                     signal.color = glo.HexToRGB(value);
@@ -922,18 +1000,28 @@ class App {
                 if (signal) {
                     signal.stride = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
             case "comp":
                 if (signal) {
                     signal.comp = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
             case "offset":
                 if (signal) {
                     signal.offset = value;
                     signal.recreate();
+                    this.SelectSignalNode(signal);
+                }
+                break;
+            case "shader":
+                if (signal) {
+                    signal.func = value;
+                    signal.recreate();
+                    this.SelectSignalNode(signal);
                 }
                 break;
         }
@@ -950,10 +1038,13 @@ class App {
         }
     }
     SelectSignal(name) {
-        this.signal = canvas.getNode("signals", name);
+        this.SelectSignalNode(canvas.getNode("signals", name));
+    }
+    SelectSignalNode(signal) {
+        this.signal = signal;
         if (this.signal) {
             this.signalBox.value = this.signal.name;
-            this.shaderBox.value = this.signal.shader;
+            this.shaderBox.value = this.signal.func;
             this.signalColor.value = glo.ToRGBHex(this.signal.color);
             this.enableCheckbox.checked = this.signal.enabled;
             this.spinScale.value = this.signal.scale[1].toString();

@@ -1,7 +1,7 @@
 const shader_signal = {
     vert: `
 
-in float sampleY;
+in float amplitude;
 
 uniform float count;
 uniform vec2 uModelScale;
@@ -9,7 +9,7 @@ uniform vec2 uModelScale;
 void main()
 {
     float x = float(gl_VertexID) / (count-1.0) - 0.5;
-    vec2 position = vec2(x, sampleY);
+    vec2 position = vec2(x, amplitude);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
