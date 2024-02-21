@@ -35,4 +35,11 @@ class glo {
         const b = parseInt(hex.substring(5, 7), 16) / 255.0;
         return [r, g, b, 1];
     }
+
+    public static lerp(a: number, b: number, t: number): number {
+        return a + (b - a) * t; // 0..1
+    }
+    public static lerpZ(a: number, b: number, t: number): number {
+        return a + (b - a) * (t + 1) * 0.5; // 0..1 -> -1..1
+    }
 }

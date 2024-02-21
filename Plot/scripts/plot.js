@@ -529,6 +529,12 @@ class glo {
         const b = parseInt(hex.substring(5, 7), 16) / 255.0;
         return [r, g, b, 1];
     }
+    static lerp(a, b, t) {
+        return a + (b - a) * t; // 0..1
+    }
+    static lerpZ(a, b, t) {
+        return a + (b - a) * (t + 1) * 0.5; // 0..1 -> -1..1
+    }
 }
 glo.bal = {};
 /// <reference path="glo.ts" />
@@ -788,9 +794,11 @@ class App {
         this.spinOffset = document.getElementById("spinOffset");
         this.spinComp = document.getElementById("spinComp");
         this.spinStride = document.getElementById("spinStride");
+        this.aspect = 1;
+        this.scaleX = 1;
+        this.scaleY = 1;
         this.isMouseDown = false;
-        this.lastMouseX = 0;
-        this.lastMouseY = 0;
+        this.gridMouse = [0, 0];
         canvasDiv.addEventListener("mousedown", this.onMouseDown.bind(this));
         canvasDiv.addEventListener("mousemove", this.onMouseMove.bind(this));
         canvasDiv.addEventListener("mouseup", this.onMouseUp.bind(this));
@@ -811,6 +819,7 @@ class App {
         gl.viewport(0, 0, width, height);
         this.unfData.uResolution[0] = width;
         this.unfData.uResolution[1] = height;
+        this.aspect = width / height;
         return true;
     }
     drawScene() {
@@ -833,6 +842,11 @@ class App {
         if (factor < 0)
             return;
         this.unfData.uScale = Math.max(RESOLUTION, glo.MulRes(this.unfData.uScale, factor, RESOLUTION));
+        this.scaleX = this.scaleY = this.unfData.uScale;
+        if (this.aspect > 1)
+            this.scaleX /= this.aspect;
+        else
+            this.scaleY *= this.aspect;
         console.log("Scale", this.unfData.uScale);
     }
     Translate(x, y) {
@@ -955,16 +969,32 @@ class App {
             this.spinStride.value = "";
         }
     }
+    ClientToGrid(clientX, clientY) {
+        const { aspect, unfData, scaleX, scaleY } = this;
+        const rect = canvasDiv.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = rect.bottom - clientY;
+        // Convert pixel to OpenGL world location
+        const glWidth = canvasDiv.width;
+        const glHeight = canvasDiv.height;
+        const ndcX = (x / glWidth) * 2 - 1;
+        const ndcY = (y / glHeight) * 2 - 1;
+        const gridX = (glo.lerpZ(unfData.uGrid[0], unfData.uGrid[1], ndcX) - unfData.uTranslate[0]) / scaleX;
+        const gridY = (glo.lerpZ(unfData.uGrid[2], unfData.uGrid[3], ndcY) - unfData.uTranslate[1]) / scaleY;
+        return [gridX, gridY];
+    }
     onMouseDown(event) {
         this.isMouseDown = true;
-        this.lastMouseX = event.clientX;
-        this.lastMouseY = event.clientY;
+        this.gridMouse = this.ClientToGrid(event.clientX, event.clientY);
     }
     onMouseMove(event) {
+        console.log("onMouseMove", event.clientX, event.clientY, this.ClientToGrid(event.clientX, event.clientY));
         if (!this.isMouseDown)
             return;
-        const deltaX = event.clientX - this.lastMouseX;
-        const deltaY = event.clientY - this.lastMouseY;
+        const prevGrid = this.gridMouse;
+        const gridMouse = this.ClientToGrid(event.clientX, event.clientY);
+        const deltaX = gridMouse[0] - prevGrid[0];
+        const deltaY = gridMouse[1] - prevGrid[1];
         if (event.ctrlKey) {
             // Scale
             const scaleFactor = Math.exp(deltaY * RESOLUTION * 0.5);
@@ -972,12 +1002,10 @@ class App {
         }
         else {
             // Translate
-            const translateX = deltaX * MOVE_STEP;
-            const translateY = deltaY * MOVE_STEP;
-            this.Translate(translateX, -translateY);
+            const translateX = deltaX * this.scaleX;
+            const translateY = deltaY * this.scaleY;
+            this.Translate(translateX, translateY);
         }
-        this.lastMouseX = event.clientX;
-        this.lastMouseY = event.clientY;
     }
     onMouseUp() {
         this.isMouseDown = false;
