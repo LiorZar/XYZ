@@ -1,3 +1,4 @@
+/// <reference path="Mat3.ts" />
 
 class GLProgram {
     private program: WebGLProgram | null;
@@ -66,7 +67,11 @@ class GLProgram {
     public bind(data: any): void {
         for (let key in data) {
             const value = data[key];
-            if (Array.isArray(value)) {
+
+            if (value instanceof Mat3) {
+                this.uniformMatrix3fv(key, false, value.data);
+            }
+            else if (Array.isArray(value)) {
                 switch (value.length) {
                     case 1:
                         this.uniform1f(key, value[0]);
@@ -80,6 +85,12 @@ class GLProgram {
                     case 4:
                         this.uniform4f(key, value[0], value[1], value[2], value[3]);
                         break;
+                    case 9:
+                        this.uniformMatrix3fv(key, false, value);
+                        break;
+                    case 16:
+                        this.uniformMatrix4fv(key, false, value);
+                        break;
                 }
             }
             else
@@ -91,46 +102,49 @@ class GLProgram {
         if (location !== undefined)
             gl.uniform1f(location, value);
     }
-
     public uniform2f(name: string, value1: number, value2: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform2f(location, value1, value2);
     }
-
     public uniform3f(name: string, value1: number, value2: number, value3: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform3f(location, value1, value2, value3);
     }
-
     public uniform4f(name: string, value1: number, value2: number, value3: number, value4: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform4f(location, value1, value2, value3, value4);
     }
-
     public uniform1i(name: string, value: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform1i(location, value);
     }
-
     public uniform2i(name: string, value1: number, value2: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform2i(location, value1, value2);
     }
-
     public uniform3i(name: string, value1: number, value2: number, value3: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform3i(location, value1, value2, value3);
     }
-
     public uniform4i(name: string, value1: number, value2: number, value3: number, value4: number): void {
         const location = this.uniforms.get(name);
         if (location !== undefined)
             gl.uniform4i(location, value1, value2, value3, value4);
+    }
+    public uniformMatrix3fv(name: string, transpose: boolean, value: number[]): void {
+        const location = this.uniforms.get(name);
+        if (location !== undefined)
+            gl.uniformMatrix3fv(location, transpose, new Float32Array(value));
+    }
+    public uniformMatrix4fv(name: string, transpose: boolean, value: number[]): void {
+        const location = this.uniforms.get(name);
+        if (location !== undefined)
+            gl.uniformMatrix4fv(location, transpose, new Float32Array(value));
     }
 }

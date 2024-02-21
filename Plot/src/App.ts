@@ -15,7 +15,9 @@ class App {
         uResolution: [0.0, 0.0],
         uGrid: [-10.0, 10.0, -10.0, 10.0],
         uScale: 1.0,
-        uTranslate: [0.0, 0.0]
+        uTranslate: [0.0, 0.0],
+        uModelMatrix: Mat3.identity(),
+        uProjectionMatrix: Mat3.identity()
     }
     private signalBox: HTMLSelectElement = document.getElementById("signalBox") as HTMLSelectElement;
     private shaderBox: HTMLSelectElement = document.getElementById("shaderBox") as HTMLSelectElement;
@@ -48,6 +50,7 @@ class App {
         this.signalBox.innerHTML = "";
     }
     private resizeCanvasToDisplaySize(force = false) {
+        const { unfData } = this;
         const width = canvasDiv.clientWidth;
         const height = canvasDiv.clientHeight;
         if (!(force || canvasDiv.width !== width || canvasDiv.height !== height))
@@ -56,9 +59,15 @@ class App {
         canvasDiv.width = width;
         canvasDiv.height = height;
         gl.viewport(0, 0, width, height);
-        this.unfData.uResolution[0] = width;
-        this.unfData.uResolution[1] = height;
+        unfData.uResolution[0] = width;
+        unfData.uResolution[1] = height;
         this.aspect = width / height;
+
+        const rl = 1.0 / (unfData.uGrid[1] - unfData.uGrid[0]);
+        const tb = 1.0 / (unfData.uGrid[3] - unfData.uGrid[2]);
+        const tx = -(unfData.uGrid[1] + unfData.uGrid[0]) * rl;
+        const ty = -(unfData.uGrid[3] + unfData.uGrid[2]) * tb;
+        unfData.uProjectionMatrix.fromArray([2.0 * rl, 0.0, 0.0, 0.0, 2.0 * tb, 0.0, tx, ty, 1.0]);
 
         return true;
     }

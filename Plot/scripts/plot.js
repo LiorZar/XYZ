@@ -44,6 +44,113 @@ class Canvas {
 }
 ;
 const canvas = new Canvas();
+class Mat3 {
+    constructor() {
+        this.data = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    }
+    fromArray(data) {
+        for (let i = 0; i < 9; i++) {
+            this.data[i] = data[i];
+        }
+    }
+    Set(row, column, value) {
+        this.data[row * 3 + column] = value;
+    }
+    Get(row, column) {
+        return this.data[row * 3 + column];
+    }
+    add(matrix) {
+        const result = new Mat3();
+        for (let i = 0; i < 9; i++) {
+            result.Set(Math.floor(i / 3), i % 3, this.Get(Math.floor(i / 3), i % 3) + matrix.Get(Math.floor(i / 3), i % 3));
+        }
+        return result;
+    }
+    sub(matrix) {
+        const result = new Mat3();
+        for (let i = 0; i < 9; i++) {
+            result.Set(Math.floor(i / 3), i % 3, this.Get(Math.floor(i / 3), i % 3) - matrix.Get(Math.floor(i / 3), i % 3));
+        }
+        return result;
+    }
+    mul(matrix) {
+        const result = new Mat3();
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                let sum = 0;
+                for (let k = 0; k < 3; k++) {
+                    sum += this.Get(i, k) * matrix.Get(k, j);
+                }
+                result.Set(i, j, sum);
+            }
+        }
+        return result;
+    }
+    mulScalar(scalar) {
+        const result = new Mat3();
+        for (let i = 0; i < 9; i++) {
+            result.Set(Math.floor(i / 3), i % 3, this.Get(Math.floor(i / 3), i % 3) * scalar);
+        }
+        return result;
+    }
+    transformPoint(point) {
+        const x = this.Get(0, 0) * point[0] + this.Get(0, 1) * point[1] + this.Get(0, 2);
+        const y = this.Get(1, 0) * point[0] + this.Get(1, 1) * point[1] + this.Get(1, 2);
+        return [x, y];
+    }
+    transpose() {
+        const result = new Mat3();
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                result.Set(i, j, this.Get(j, i));
+            }
+        }
+        return result;
+    }
+    determinant() {
+        return this.Get(0, 0) * (this.Get(1, 1) * this.Get(2, 2) - this.Get(1, 2) * this.Get(2, 1)) -
+            this.Get(0, 1) * (this.Get(1, 0) * this.Get(2, 2) - this.Get(1, 2) * this.Get(2, 0)) +
+            this.Get(0, 2) * (this.Get(1, 0) * this.Get(2, 1) - this.Get(1, 1) * this.Get(2, 0));
+    }
+    inverse() {
+        const result = new Mat3();
+        const det = this.determinant();
+        if (det === 0) {
+            throw new Error("Matrix is not invertible");
+        }
+        const invDet = 1 / det;
+        result.Set(0, 0, (this.Get(1, 1) * this.Get(2, 2) - this.Get(1, 2) * this.Get(2, 1)) * invDet);
+        result.Set(0, 1, (this.Get(0, 2) * this.Get(2, 1) - this.Get(0, 1) * this.Get(2, 2)) * invDet);
+        result.Set(0, 2, (this.Get(0, 1) * this.Get(1, 2) - this.Get(0, 2) * this.Get(1, 1)) * invDet);
+        result.Set(1, 0, (this.Get(1, 2) * this.Get(2, 0) - this.Get(1, 0) * this.Get(2, 2)) * invDet);
+        result.Set(1, 1, (this.Get(0, 0) * this.Get(2, 2) - this.Get(0, 2) * this.Get(2, 0)) * invDet);
+        result.Set(1, 2, (this.Get(0, 2) * this.Get(1, 0) - this.Get(0, 0) * this.Get(1, 2)) * invDet);
+        result.Set(2, 0, (this.Get(1, 0) * this.Get(2, 1) - this.Get(1, 1) * this.Get(2, 0)) * invDet);
+        result.Set(2, 1, (this.Get(0, 1) * this.Get(2, 0) - this.Get(0, 0) * this.Get(2, 1)) * invDet);
+        result.Set(2, 2, (this.Get(0, 0) * this.Get(1, 1) - this.Get(0, 1) * this.Get(1, 0)) * invDet);
+        return result;
+    }
+    static identity() {
+        const result = new Mat3();
+        result.Set(0, 0, 1);
+        result.Set(1, 1, 1);
+        result.Set(2, 2, 1);
+        return result;
+    }
+    static translation(x, y) {
+        const result = Mat3.identity();
+        result.Set(0, 2, x);
+        result.Set(1, 2, y);
+        return result;
+    }
+    static scale(x, y) {
+        const result = Mat3.identity();
+        result.Set(0, 0, x);
+        result.Set(1, 1, y);
+        return result;
+    }
+}
+/// <reference path="Mat3.ts" />
 class GLProgram {
     constructor() {
         this.program = null;
@@ -95,7 +202,10 @@ class GLProgram {
     bind(data) {
         for (let key in data) {
             const value = data[key];
-            if (Array.isArray(value)) {
+            if (value instanceof Mat3) {
+                this.uniformMatrix3fv(key, false, value.data);
+            }
+            else if (Array.isArray(value)) {
                 switch (value.length) {
                     case 1:
                         this.uniform1f(key, value[0]);
@@ -108,6 +218,12 @@ class GLProgram {
                         break;
                     case 4:
                         this.uniform4f(key, value[0], value[1], value[2], value[3]);
+                        break;
+                    case 9:
+                        this.uniformMatrix3fv(key, false, value);
+                        break;
+                    case 16:
+                        this.uniformMatrix4fv(key, false, value);
                         break;
                 }
             }
@@ -155,6 +271,16 @@ class GLProgram {
         if (location !== undefined)
             gl.uniform4i(location, value1, value2, value3, value4);
     }
+    uniformMatrix3fv(name, transpose, value) {
+        const location = this.uniforms.get(name);
+        if (location !== undefined)
+            gl.uniformMatrix3fv(location, transpose, new Float32Array(value));
+    }
+    uniformMatrix4fv(name, transpose, value) {
+        const location = this.uniforms.get(name);
+        if (location !== undefined)
+            gl.uniformMatrix4fv(location, transpose, new Float32Array(value));
+    }
 }
 const unfBlock = `#version 300 es
 
@@ -164,21 +290,8 @@ uniform vec2 uResolution;
 uniform vec4 uGrid;
 uniform float uScale;   
 uniform vec2 uTranslate;
-
-mat3 ProjectionMatrix()
-{
-    float rl = 1.0 / (uGrid.y - uGrid.x);
-    float tb = 1.0 / (uGrid.w - uGrid.z);
-    float tx = -(uGrid.y + uGrid.x) * rl;
-    float ty = -(uGrid.w + uGrid.z) * tb;
-
-    return mat3
-    (
-        2.0 * rl, 0.0, 0.0,
-        0.0, 2.0 * tb, 0.0,
-        tx, ty, 1.0
-    );
-}
+// unfiorm mat3 uModelMatrix;
+uniform mat3 uProjectionMatrix;
 
 mat3 ModelMatrix()
 {
@@ -202,7 +315,7 @@ vec2 ModelPosition(vec2 position)
 }
 vec2 ModelProjectionPosition(vec2 position)
 {
-    vec3 pos = ProjectionMatrix() * ModelMatrix() * vec3(position, 1.f);
+    vec3 pos = uProjectionMatrix * ModelMatrix() * vec3(position, 1.f);
     return pos.xy / pos.z;
 }
 
@@ -870,7 +983,9 @@ class App {
             uResolution: [0.0, 0.0],
             uGrid: [-10.0, 10.0, -10.0, 10.0],
             uScale: 1.0,
-            uTranslate: [0.0, 0.0]
+            uTranslate: [0.0, 0.0],
+            uModelMatrix: Mat3.identity(),
+            uProjectionMatrix: Mat3.identity()
         };
         this.signalBox = document.getElementById("signalBox");
         this.shaderBox = document.getElementById("shaderBox");
@@ -897,6 +1012,7 @@ class App {
         this.signalBox.innerHTML = "";
     }
     resizeCanvasToDisplaySize(force = false) {
+        const { unfData } = this;
         const width = canvasDiv.clientWidth;
         const height = canvasDiv.clientHeight;
         if (!(force || canvasDiv.width !== width || canvasDiv.height !== height))
@@ -904,9 +1020,14 @@ class App {
         canvasDiv.width = width;
         canvasDiv.height = height;
         gl.viewport(0, 0, width, height);
-        this.unfData.uResolution[0] = width;
-        this.unfData.uResolution[1] = height;
+        unfData.uResolution[0] = width;
+        unfData.uResolution[1] = height;
         this.aspect = width / height;
+        const rl = 1.0 / (unfData.uGrid[1] - unfData.uGrid[0]);
+        const tb = 1.0 / (unfData.uGrid[3] - unfData.uGrid[2]);
+        const tx = -(unfData.uGrid[1] + unfData.uGrid[0]) * rl;
+        const ty = -(unfData.uGrid[3] + unfData.uGrid[2]) * tb;
+        unfData.uProjectionMatrix.fromArray([2.0 * rl, 0.0, 0.0, 0.0, 2.0 * tb, 0.0, tx, ty, 1.0]);
         return true;
     }
     drawScene() {
