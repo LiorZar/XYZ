@@ -273,12 +273,16 @@ void main()
 };
 const shader_signal = {
     vert: `
-in vec2 position;
 
+in float sampleY;
+
+uniform float count;
 uniform vec2 uModelScale;
 
 void main()
 {
+    float x = float(gl_VertexID) / (count-1.0) - 0.5;
+    vec2 position = vec2(x, sampleY);
     gl_Position = vec4(ModelProjectionPosition(position*uModelScale), 0.0, 1.0);
 }
 `,
@@ -716,7 +720,7 @@ class Lines {
     }
     draw(prog) {
         prog.bind({ color: this.color });
-        this.buffer.Draw(gl.LINES);
+        this.buffer.Draw(gl.LINE_STRIP);
     }
 }
 /// <reference path="INode.ts" />
@@ -750,11 +754,11 @@ class Signal {
         const space = 1.0 / count;
         let x = -0.5;
         for (let i = offset; i < fdata.length; i += cstride) {
-            vertexData.push(x, fdata[i]);
+            vertexData.push(fdata[i]);
             x += space;
         }
         const buffer = new GLBuffer();
-        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        buffer.create(new Float32Array(vertexData), [1], gl.STATIC_DRAW);
         this.buffer = buffer;
     }
     draw(prog) {
@@ -762,6 +766,7 @@ class Signal {
             return;
         prog.bind({
             color: this.color,
+            count: this.buffer.elementCount,
             uModelScale: this.scale
         });
         this.buffer.Draw(gl.LINE_STRIP);
@@ -805,7 +810,7 @@ class App {
         canvasDiv.addEventListener("wheel", this.onMouseWheel.bind(this));
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
+        canvas.addNode("elems", new Lines("node3", "reg", [-1, 1, 2, 5, 3, 8]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
         this.signalBox.innerHTML = "";
     }

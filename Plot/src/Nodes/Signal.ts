@@ -40,12 +40,12 @@ class Signal implements INode {
         const space: number = 1.0 / count;
         let x = -0.5;
         for (let i = offset; i < fdata.length; i += cstride) {
-            vertexData.push(x, fdata[i]);
+            vertexData.push(fdata[i]);
             x += space;
         }
 
         const buffer = new GLBuffer();
-        buffer.create(new Float32Array(vertexData), [2], gl.STATIC_DRAW);
+        buffer.create(new Float32Array(vertexData), [1], gl.STATIC_DRAW);
         this.buffer = buffer;
 
     }
@@ -54,6 +54,7 @@ class Signal implements INode {
             return;
         prog.bind({
             color: this.color,
+            count: this.buffer.elementCount,
             uModelScale: this.scale
         });
 

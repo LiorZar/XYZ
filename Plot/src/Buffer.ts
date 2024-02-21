@@ -6,7 +6,7 @@ class GLBuffer {
     private buffer: WebGLBuffer | null;
     private attributeLocations: { location: number, numComponents: number, offset: number }[];
     private stride: number = 0;
-    private elementCount: number = 0;
+    public elementCount: number = 0;
 
     constructor(type: GLenum = gl.ARRAY_BUFFER, base: GLuint = 0) {
         this.type = type;

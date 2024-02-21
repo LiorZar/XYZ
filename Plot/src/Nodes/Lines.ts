@@ -18,6 +18,6 @@ class Lines implements INode {
     }
     public draw(prog: GLProgram): void {
         prog.bind({ color: this.color });
-        this.buffer.Draw(gl.LINES);
+        this.buffer.Draw(gl.LINE_STRIP);
     }
 }

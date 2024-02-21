@@ -42,7 +42,7 @@ class App {
 
         const grid = new Grid("grid", 40);
         canvas.addNode("bk", grid);
-        canvas.addNode("elems", new Lines("node3", "reg", [0, 0, -5.0, 5]));
+        canvas.addNode("elems", new Lines("node3", "reg", [-1, 1, 2, 5, 3, 8]));
         canvas.addNode("elems", new Quad("node2", "reg", [3.3, 0, 4.5, 0, 3.3, 1.2, 4.5, 1.2]));
 
         this.signalBox.innerHTML = "";
