@@ -1048,10 +1048,13 @@ class App {
             }
         }
     }
-    Scale(factor) {
+    Scale(factor, gMouse) {
         if (factor < 0)
             return;
-        this.unfData.uModelMatrix.scale(factor, factor);
+        const { unfData } = this;
+        unfData.uModelMatrix.translate(gMouse[0], gMouse[1]);
+        unfData.uModelMatrix.scale(factor, factor);
+        unfData.uModelMatrix.translate(-gMouse[0], -gMouse[1]);
         this.refreshMVP();
     }
     Translate(x, y) {
@@ -1072,10 +1075,10 @@ class App {
         console.log("onButton", name);
         switch (name) {
             case "in":
-                this.Scale(1.1);
+                this.Scale(1.1, [0, 0]);
                 break;
             case "out":
-                this.Scale(0.9);
+                this.Scale(0.9, [0, 0]);
                 break;
             case "left":
                 this.Translate(-1, 0);
@@ -1221,7 +1224,7 @@ class App {
         if (event.ctrlKey) {
             // Scale
             const scaleFactor = Math.exp(deltaY * RESOLUTION * 0.5);
-            this.Scale(scaleFactor);
+            this.Scale(scaleFactor, gridMouse);
         }
         else {
             // Translate
@@ -1235,8 +1238,9 @@ class App {
     }
     onMouseWheel(event) {
         event.preventDefault();
+        const gridMouse = this.ClientToGrid(event.clientX, event.clientY);
         const scaleFactor = Math.exp(event.deltaY * RESOLUTION * 0.1);
-        this.Scale(scaleFactor);
+        this.Scale(scaleFactor, gridMouse);
     }
     onKeyDown(event) {
         if (event.key === "0") {
