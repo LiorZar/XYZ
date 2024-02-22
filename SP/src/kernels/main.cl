@@ -32,7 +32,7 @@ __kernel void Transpose1DC(__global const float *input, __global float2 *output,
         return;
     int row = idx / cols;
     int col = idx % cols;
-    int nrow = 0 == reverse ? row : cols - row - 1;
+    int nrow = 0 == reverse ? row : rows - row - 1;
 
     float2 v = {input[row * cols + col], 0.0f};
     output[col * new_row_stride + nrow] = v;

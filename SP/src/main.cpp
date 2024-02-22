@@ -3,7 +3,6 @@
 #include "cl/Buffer.hpp"
 #include "cl/FFT.h"
 #include "cl/Elapse.hpp"
-#include "net/WSProcessor.h"
 
 const int GRP = 256;
 const int num_of_channels = 20;
@@ -66,7 +65,7 @@ int main()
     FFT::getInstance();
     el.Stamp("FFT initialized");
 
-    Program program("../../src/kernels/main.cl");
+    Program program("../src/kernels/main.cl");
 
     Buffer<float> filter;
     Buffer<std::complex<float>> filterFFT(num_of_samples_padd);
@@ -78,10 +77,10 @@ int main()
     tmp.WriteToFile("../../../data/0/tmp.bin");
 
     int tot;
-    curr.ReadFromFile("../../../data/0/curr.bin");
-    prev.ReadFromFile("../../../data/0/prev.bin");
-    filter.ReadFromFile("../../../data/0/filter.bin");
-    result.ReadFromFile("../../../data/0/out.bin", false);
+    curr.ReadFromFile("../../data/0/curr.bin");
+    prev.ReadFromFile("../../data/0/prev.bin");
+    filter.ReadFromFile("../../data/0/filter.bin");
+    result.ReadFromFile("../../data/0/out.bin", false);
     if (filter.size() != num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
         std::cerr << "Invalid data size" << std::endl;
