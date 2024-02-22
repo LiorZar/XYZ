@@ -40,7 +40,7 @@ bool Socket::Bind(int port)
         return false;
 
     SOCKADDR_IN serverAddress;
-    std::memset(&serverAddress, 0, sizeof(serverAddress));
+    // std::memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons((short)port);
     serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -80,7 +80,7 @@ bool Socket::Connect(const std::string &ipAddress, int port)
         return false;
 
     SOCKADDR_IN address;
-    std::memset(&address, 0, sizeof(address));
+    // std::memset(&address, 0, sizeof(address));
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = inet_addr(ipAddress.c_str());

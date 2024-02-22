@@ -60,7 +60,6 @@ std::vector<float> Tone1(float frequency, int sampleRate, float duration, size_t
 }
 int main()
 {
-    WSProcessor::ProcessHandshake(BinBuffer());
     Elapse el("Main");
     std::cout << "----------------------------------------------------------\n";
     Context::getInstance();
