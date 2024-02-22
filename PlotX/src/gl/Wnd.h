@@ -1,8 +1,7 @@
 #ifndef GLFW_WINDOW_WRAPPER_H
 #define GLFW_WINDOW_WRAPPER_H
 
-#include <GLFW/glfw3.h>
-#include <stdexcept>
+#include "defines.h"
 
 class Wnd
 {

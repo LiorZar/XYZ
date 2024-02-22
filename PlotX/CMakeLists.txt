@@ -15,7 +15,14 @@ file(GLOB_RECURSE HEADERS "src/*.h" "src/*.hpp")
 
 add_executable(PlotX ${SOURCES} ${HEADERS})
 
-# GLFW path - adjust to where you extracted GLFW
+set(GLEW_DIR $ENV{GLEW_DIR})
+set(GLEW_INCLUDE_DIR "${GLEW_DIR}/include")
+set(GLEW_LIBRARY "${GLEW_DIR}/lib/Release/x64/glew32.lib")
+
+message(STATUS "GLEW_DIR: ${GLEW_DIR}")
+message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
+message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIR}")
+
 set(GLFW_DIR $ENV{GLFW_DIR})
 set(GLFW_INCLUDE_DIR "${GLFW_DIR}/include")
 set(GLFW_LIBRARY "${GLFW_DIR}/lib-mingw-w64/glfw3.dll")
@@ -25,10 +32,14 @@ set(CLFFT_LIBRARY $ENV{CLFFT_LIBRARY}/clFFT.lib)
 
 find_package(OpenCL 2.1 REQUIRED)
 find_package(OpenGL REQUIRED)
+# find_package(GLFW3 REQUIRED)
+# find_package(GLEW REQUIRED)
+# find_package(glm REQUIRED)
 
-include_directories(${GLFW_INCLUDE_DIR} ${CLFFT_INCLUDE_DIR})
-link_directories(${GLFW_LIBRARY_DIR})
 
-target_include_directories(PlotX PRIVATE ${OpenCL_INCLUDE_DIRS} ${CLFFT_INCLUDE_DIR} ${GLFW_INCLUDE_DIR})
-target_link_libraries(PlotX OpenGL::GL ${GLFW_LIBRARY} ${OpenCL_LIBRARIES} ${CLFFT_LIBRARY}) # Use glfw3 for static linking
+include_directories(${GLEW_INCLUDE_DIR} ${GLFW_INCLUDE_DIR} ${CLFFT_INCLUDE_DIR})
+
+
+target_include_directories(PlotX PRIVATE ${GLEW_INCLUDE_DIR} ${GLFW_INCLUDE_DIR} ${OpenCL_INCLUDE_DIRS} ${CLFFT_INCLUDE_DIR} )
+target_link_libraries(PlotX OpenGL::GL ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OpenCL_LIBRARIES} ${CLFFT_LIBRARY}) # Use glfw3 for static linking
 
