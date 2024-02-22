@@ -5,14 +5,14 @@
 
 NAMESPACE_BEGIN(gl);
 
-class GLProgram
+class Program
 {
 private:
     GLuint programID;
 
 public:
-    GLProgram(const std::string &vertexShaderSource, const std::string &fragmentShaderSource);
-    ~GLProgram();
+    Program(const std::string &vertexShaderSource, const std::string &fragmentShaderSource);
+    ~Program();
 
     void use() const;
     GLuint get() const;

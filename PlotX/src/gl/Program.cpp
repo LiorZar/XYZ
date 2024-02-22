@@ -2,7 +2,7 @@
 
 NAMESPACE_BEGIN(gl);
 
-GLProgram::GLProgram(const std::string &vertexShaderSource, const std::string &fragmentShaderSource)
+Program::Program(const std::string &vertexShaderSource, const std::string &fragmentShaderSource)
 {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -56,17 +56,17 @@ GLProgram::GLProgram(const std::string &vertexShaderSource, const std::string &f
     glDeleteShader(fragmentShader);
 }
 
-GLProgram::~GLProgram()
+Program::~Program()
 {
     glDeleteProgram(programID);
 }
 
-void GLProgram::use() const
+void Program::use() const
 {
     glUseProgram(programID);
 }
 
-GLuint GLProgram::get() const
+GLuint Program::get() const
 {
     return programID;
 }
