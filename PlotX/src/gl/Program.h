@@ -1,7 +1,9 @@
-#ifndef GL_PROGRAM_WRAPPER_H
-#define GL_PROGRAM_WRAPPER_H
+#ifndef __PROGRAM_H__
+#define __PROGRAM_H__
 
 #include "defines.h"
+
+NAMESPACE_BEGIN(gl);
 
 class GLProgram
 {
@@ -15,5 +17,6 @@ public:
     void use() const;
     GLuint get() const;
 };
+NAMESPACE_END(gl);
 
-#endif // GL_PROGRAM_WRAPPER_H
+#endif // __PROGRAM_H__

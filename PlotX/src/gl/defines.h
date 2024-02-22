@@ -14,4 +14,9 @@
 #include <chrono>
 #include <stdexcept>
 
+#define NAMESPACE_BEGIN(name) \
+    namespace name            \
+    {
+#define NAMESPACE_END(name) }
+
 #endif // __DEFINES_H__

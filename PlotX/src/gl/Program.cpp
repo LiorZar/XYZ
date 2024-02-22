@@ -1,5 +1,7 @@
 #include "Program.h"
 
+NAMESPACE_BEGIN(gl);
+
 GLProgram::GLProgram(const std::string &vertexShaderSource, const std::string &fragmentShaderSource)
 {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -68,3 +70,4 @@ GLuint GLProgram::get() const
 {
     return programID;
 }
+NAMESPACE_END(gl);

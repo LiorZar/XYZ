@@ -1,7 +1,9 @@
-#ifndef GLFW_WINDOW_WRAPPER_H
-#define GLFW_WINDOW_WRAPPER_H
+#ifndef __WND_H__
+#define __WND_H__
 
 #include "defines.h"
+
+NAMESPACE_BEGIN(gl);
 
 class Wnd
 {
@@ -32,5 +34,6 @@ private:
     void pollEvents();
     GLFWwindow *get() const;
 };
+NAMESPACE_END(gl);
 
-#endif // GLFW_WINDOW_WRAPPER_H
+#endif // __WND_H__
