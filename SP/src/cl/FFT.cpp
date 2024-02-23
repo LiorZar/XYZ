@@ -37,27 +37,32 @@ FFT::Plan::~Plan()
     handle = 0;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+#define CHECK(cmd)              \
+    err = cmd;                  \
+    if(CLFFT_SUCCESS != err){   \
+        std::cerr << #cmd << err << std::endl; \
+    return false;               \
+    }
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool FFT::Plan::Init()
 {
     if (handle != 0)
         return true;
-    auto err = clfftCreateDefaultPlan(&handle, Context::get()(), dims, sizes);
-    if (err != CL_SUCCESS)
-    {
-        std::cerr << "**************** clfftCreateDefaultPlan: " << err << std::endl;
-        return false;
+    clfftStatus err;
+    CHECK(clfftCreateDefaultPlan(&handle, Context::get()(), dims, sizes));
+    CHECK(clfftSetPlanBatchSize(handle, batchSize));
+    CHECK(clfftSetPlanPrecision(handle, precision));
+    CHECK(clfftSetResultLocation(handle, placeness));
+    CHECK(clfftSetLayout(handle, iLayout, oLayout));
+    if(dist > 0){
+        CHECK(clfftSetPlanDistance(handle, dist, dist));
     }
-
-    clfftSetPlanBatchSize(handle, 1);
-    clfftSetPlanPrecision(handle, precision);
-    clfftSetResultLocation(handle, placeness);
-    clfftSetLayout(handle, iLayout, oLayout);
-
-    clfftBakePlan(handle, 1, &Context::Q()(), nullptr, nullptr);
+    CHECK(clfftBakePlan(handle, 1, &Context::Q()(), nullptr, nullptr));
 
     size_t tmpBufferSize;
     clfftGetTmpBufSize(handle, &tmpBufferSize);
-    tmpBuffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, tmpBufferSize);
+    if(tmpBufferSize > 0)
+        tmpBuffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, tmpBufferSize);
 
     return true;
 }
@@ -94,7 +99,8 @@ std::string FFT::Plan::Key() const
     ss
         << (CLFFT_SINGLE == precision ? "f" : "d")
         << (CLFFT_INPLACE == placeness ? "i" : "o")
-        << "_" << fn(iLayout) << fn(oLayout);
+        << "_" << fn(iLayout) << fn(oLayout)
+        << "_b" << batchSize << "_d" << dist;
 
     return ss.str();
 }
@@ -109,27 +115,25 @@ FFT::FFT()
     std::cout << "clfftSetup: " << err1 << std::endl;
 
     PlanPtr plan;
-    plan = std::make_shared<Plan>(NextPow235(500), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
+//    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
+//    plan->Init();
+//    plans[plan->Key()] = plan;
+
+//    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+//    plan->Init();
+//    plans[plan->Key()] = plan;
+
+//    plan = std::make_shared<Plan>(NextPow235(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+//    plan->Init();
+//    plans[plan->Key()] = plan;
+
+    plan = std::make_shared<Plan>(NextPow2(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->Init();
     plans[plan->Key()] = plan;
 
-    plan = std::make_shared<Plan>(NextPow235(500), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
-    plan->Init();
-    plans[plan->Key()] = plan;
-
-    plan = std::make_shared<Plan>(NextPow235(20000), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
-    plan->Init();
-    plans[plan->Key()] = plan;
-
-    plan = std::make_shared<Plan>(NextPow235(20000), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
-    plan->Init();
-    plans[plan->Key()] = plan;
-
-    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
-    plan->Init();
-    plans[plan->Key()] = plan;
-
-    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    plan = std::make_shared<Plan>(20, CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    plan->batchSize = 20000;
+    plan->dist = 0;
     plan->Init();
     plans[plan->Key()] = plan;
 }
@@ -179,9 +183,16 @@ size_t FFT::NextPow235(size_t n)
     return numbers.back();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size)
+int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size, size_t split, size_t dist)
 {
     Plan plan(size, CLFFT_COMPLEX_INTERLEAVED, outputBuffer() != null() ? CLFFT_OUTOFPLACE : CLFFT_INPLACE);
+    if(split > 1)
+    {
+        plan.batchSize = split;
+        plan.sizes[0] /= split;
+        if(dist > 0)
+            plan.dist = dist;
+    }
     return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

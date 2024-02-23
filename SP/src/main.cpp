@@ -9,13 +9,15 @@ const int num_of_channels = 20;
 const int samples_per_channel = 20000;
 const int filter_size = 500;
 // const int samples_per_channel_padd = samples_per_channel + filter_size - 1;
-const int samples_per_channel_padd = FFT::NextPow2(samples_per_channel + filter_size - 1);
+const int samples_per_channel_padd = FFT::NextPow2(samples_per_channel + filter_size * 2 - 1);
 const int num_of_samples = num_of_channels * samples_per_channel;
 const int num_of_filters = num_of_channels * filter_size;
 const int num_of_samples_padd = num_of_channels * samples_per_channel_padd;
 
-int Compare(const std::vector<std::complex<float>> &a, const std::vector<std::complex<float>> &b, size_t size)
+int Compare(const std::vector<std::complex<float>> &a, const std::vector<std::complex<float>> &b, size_t size = 0)
 {
+    if (size <= 0)
+        size = a.size();
     int errors = 0;
     for (auto i = 0U; i < size; ++i)
     {
@@ -28,99 +30,137 @@ int Compare(const std::vector<std::complex<float>> &a, const std::vector<std::co
     }
     return errors;
 }
-
-std::vector<std::complex<float>> Tone(float frequency, int sampleRate, float duration, size_t size)
+int Compare(const std::vector<float> &a, const std::vector<float> &b, size_t size = 0)
 {
-    int numSamples = static_cast<int>(duration * sampleRate); // Total number of samples
-    std::vector<std::complex<float>> signal(std::max<size_t>(size, numSamples));
+    if (size <= 0)
+        size = a.size();
 
-    // Generate each sample of the sine wave
-    for (int i = 0; i < numSamples; ++i)
+    int errors = 0;
+    for (auto i = 0U; i < size; ++i)
     {
-        float t = static_cast<float>(i) / sampleRate;                       // Current time in seconds for this sample
-        signal[i].real(sin(2.0f * 3.14159265358979323846 * frequency * t)); // Calculate the sine value
+        if (std::abs(a[i] - b[i]) > 1e-6)
+        {
+            // std::cerr << "Error at " << i << ": " << a[i] << " != " << b[i] << std::endl;
+            ++errors;
+        }
     }
-
-    return signal;
+    return errors;
 }
-std::vector<float> Tone1(float frequency, int sampleRate, float duration, size_t size)
-{
-    int numSamples = static_cast<int>(duration * sampleRate); // Total number of samples
-    std::vector<float> signal(std::max<size_t>(size, numSamples));
 
-    // Generate each sample of the sine wave
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float t = static_cast<float>(i) / sampleRate;                   // Current time in seconds for this sample
-        signal[i] = sin(2.0f * 3.14159265358979323846 * frequency * t); // Calculate the sine value
-    }
-
-    return signal;
-}
 int main()
 {
     Elapse el("Main");
     std::cout << "----------------------------------------------------------\n";
     Context::getInstance();
     FFT::getInstance();
-    el.Stamp("FFT initialized");
-
+    el.Stamp("FFT init");
     Program program("../../src/kernels/main.cl");
 
-    Buffer<float> filter;
+    // files for testing
+    Buffer<int> gl(10);
+    Buffer<float> filter, abs_out(num_of_samples), abs_prev, fir_out;
+    Buffer<std::complex<float>> fft_out;
+    Buffer<std::complex<float>> prev, curr, out(num_of_samples), result;
+
+    // gpu for algorithms
+    Buffer<float> firFilter, currAbs(num_of_samples), currFir(num_of_samples);
     Buffer<std::complex<float>> filterFFT(num_of_samples_padd);
-    Buffer<std::complex<float>> curr, prev, out(num_of_samples), result;
-    Buffer<std::complex<float>> currT(num_of_samples_padd), prevT(num_of_samples_padd), outT(num_of_samples_padd);
+    Buffer<std::complex<float>> prevT(num_of_samples_padd), currT(num_of_samples_padd);
+    const float F7 = 1.f / 7.f;
+    firFilter.host().resize(7, F7);
 
-    Buffer<float> tmp;
-    tmp.host() = Tone1(100, 44100, 1, 1000);
-    tmp.WriteToFile("../../../data/0/tmp.bin");
+    //    filter.ReadFromFile("../../data/4/filter.bin");
+    filter.ReadFromFile("../../../data/FILTER.32fc");
+    curr.ReadFromFile("../../../data/Chann_current1.32fc");
+    prev.ReadFromFile("../../../data/Chann_prev1.32fc");
+    result.ReadFromFile("../../../data/Chann_out1.32fc", false);
+    fft_out.ReadFromFile("../../../data/FFT_OUT1.32fc");
+    abs_prev.ReadFromFile("../../../data/FIR_PREV1.32fc"); //
+    abs_out.ReadFromFile("../../../data/ABS_OUT1.32fc");
+    fir_out.ReadFromFile("../../../data/FIR_CURRENT1.32fc");
 
-    int tot;
-    curr.ReadFromFile("../../../data/0/curr.bin");
-    prev.ReadFromFile("../../../data/0/prev.bin");
-    filter.ReadFromFile("../../../data/0/filter.bin");
-    result.ReadFromFile("../../../data/0/out.bin", false);
-    if (filter.size() != num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
+    if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
         std::cerr << "Invalid data size" << std::endl;
         return 1;
     }
     el.Stamp("Data loaded");
-    currT.Refresh();
+
+    gl.Refresh();
     prevT.Refresh();
-    outT.Refresh();
-    out.Refresh();
+    currT.Refresh();
+    currAbs.Refresh();
+    firFilter.Refresh();
+    currFir.Refresh();
     el.Stamp("Data allocated");
 
     program.Dispatch1D("Transpose1DC", num_of_filters, GRP, *filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
+    int tot = 0;
     for (int i = 0; i < num_of_channels; ++i)
-        FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
+        tot += FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
     el.Stamp("FFT filter");
+    //    for (int i = 0; i < 1000; ++i)
+    {
 
-    el.GStamp("Transpose Signal", program.Dispatch1D("Transpose2D", num_of_samples, GRP, *curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd));
-    el.Stamp("Transpose Signal");
+        el.GStamp("Transpose Signal", program.Dispatch1D("Transpose2D", num_of_samples, GRP, *curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size));
+        el.GStamp("Transpose copypv", program.Dispatch1D("Transpose2D_copy_Prev", filter_size * samples_per_channel, GRP, *prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd));
+        el.Stamp("Transpose Signal");
 
-    tot = 0;
-    for (int i = 0; i < num_of_channels; ++i)
-        tot += FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    el.GStamp("FFT curr", tot);
-    el.GStamp("convolve2DFreq", program.Dispatch1D("convolve2DFreq", num_of_samples_padd, GRP, *currT, *filterFFT, num_of_samples_padd));
+        tot = 0;
+        for (int i = 0; i < num_of_channels; ++i)
+            tot += FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+        el.GStamp("FWD FFT", tot);
+        el.Stamp("FFT signal channels");
 
-    tot = 0;
-    for (int i = 0; i < num_of_channels; ++i)
-        tot += FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    el.GStamp("InvFFT curr", tot);
-    el.GStamp("Inverse Transpose", program.Dispatch1D("InverseTranspose2D", num_of_samples, GRP, *currT, *out, num_of_channels, samples_per_channel, samples_per_channel_padd));
-    el.Stamp("FFT");
+        el.GStamp("convolve2DFreq", program.Dispatch1D("convolve2DFreq", num_of_samples_padd, GRP, *currT, *filterFFT, num_of_samples_padd));
 
-    out.Download();
+        tot = 0;
+        for (int i = 0; i < num_of_channels; ++i)
+            tot += FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+
+        el.GStamp("BK FFT", tot);
+        el.Stamp("IFFT signal channels");
+
+        //    el.GStamp("InverseTranspose Result1", program.Dispatch1D("InverseTranspose2D", num_of_samples, GRP, *currT, *outT, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size));
+        el.GStamp("InverseTranspose Result2", program.Dispatch1D("InverseTranspose2D", num_of_samples, GRP, *currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size));
+        el.GStamp("FFT V", FFT::Dispatch(true, out, samples_per_channel));
+        el.GStamp("ABS", program.Dispatch1D("AbsMag", num_of_samples, GRP, *out, *currAbs, num_of_samples));
+        //  el.GStamp("convolve1D", program.Dispatch1D("convolve1D", num_of_samples, GRP, *abs_prev, *currAbs, *firFilter, *currFir, num_of_samples, 7, num_of_channels));
+        // el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, *gl, samples_per_channel, num_of_channels));
+    }
+    abs_prev.Download();
+    currAbs.Download();
+    currAbs.Download();
+    // out.Download();
+    currFir.Download();
+    gl.Download();
+    /*
+    for(int i = 120; i < currAbs.size(); ++i)
+    {
+        const int sample = i/num_of_channels;
+        const int channel = i%num_of_channels;
+        float res1 = 0;
+        float res2 = fir_out[i];
+        for(int k = 0; k < 7; ++k)
+        {
+//            res1 += currAbs[(sample - k)*num_of_channels + channel];
+            res1 += abs_out[i - k*num_of_channels];
+        }
+        res1 *= F7;
+        float d = std::abs(res1 - res2);
+        if(d > 1e-6)
+            d++;
+    }*/
+
     el.Stamp("Data downloaded");
-
-    int errors = Compare(&out, &result, num_of_samples);
-    el.Stamp("Compare");
-
+    int errors = 0;
+    //    errors = Compare(&out, &result, num_of_samples);
+    //    std::cout << "Errors: " << errors << std::endl;
+    //    errors = Compare(&out, &fft_out, num_of_samples);
+    errors = Compare(&currAbs, &abs_out, num_of_samples);
+    // errors = Compare(&currFir, &fir_out, num_of_samples);
     std::cout << "Errors: " << errors << std::endl;
+    el.Stamp("Compare");
     std::cout << "----------------------------------------------------------\n";
     return 0;
 }

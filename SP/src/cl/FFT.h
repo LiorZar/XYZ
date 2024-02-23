@@ -19,6 +19,8 @@ private:
         clfftPlanHandle handle = 0;
         clfftDim dims = CLFFT_1D;
         size_t sizes[CLFFT_3D] = {0, 0, 0};
+        size_t batchSize = 1;
+        size_t dist = 0;
         clfftPrecision precision = CLFFT_SINGLE;
         clfftResultLocation placeness = CLFFT_OUTOFPLACE;
         clfftLayout iLayout = CLFFT_COMPLEX_INTERLEAVED;
@@ -37,26 +39,26 @@ public:
     static FFT &getInstance();
     static size_t NextPow2(size_t n);
     static size_t NextPow235(size_t n);
-    static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size);
+    static int Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size, size_t split, size_t dist = 0);
     template <typename T>
-    static int Dispatch(bool fwd, Buffer<T> &inputBuffer)
+    static int Dispatch(bool fwd, Buffer<T> &inputBuffer, size_t split)
     {
-        return Dispatch(fwd, *inputBuffer, null, inputBuffer.size());
+        return Dispatch(fwd, *inputBuffer, null, inputBuffer.size(), split);
     }
     template <typename T>
-    static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer)
+    static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer, size_t split)
     {
-        return Dispatch(fwd, *inputBuffer, *outputBuffer, inputBuffer.size());
+        return Dispatch(fwd, *inputBuffer, *outputBuffer, inputBuffer.size(), split);
     }
     template <typename T>
     static int Dispatch(bool fwd, Buffer<T> &buffer, size_t offset, size_t size)
     {
-        return Dispatch(fwd, buffer.Sub(offset, size), null, size);
+        return Dispatch(fwd, buffer.Sub(offset, size), null, size, 1);
     }
     template <typename T>
     static int Dispatch(bool fwd, Buffer<T> &inputBuffer, Buffer<T> &outputBuffer, size_t offset, size_t size)
     {
-        return Dispatch(fwd, inputBuffer.Sub(offset, size), outputBuffer.Sub(offset, size), size);
+        return Dispatch(fwd, inputBuffer.Sub(offset, size), outputBuffer.Sub(offset, size), size, 1);
     }
 
 private:

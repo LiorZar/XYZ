@@ -8,53 +8,64 @@ Program::Program(const std::string &sourceFilePath)
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Program::Load(const std::string &sourceFilePath)
 {
-    std::cout << "Current directory path: " << std::filesystem::current_path().string() << std::endl;
-
-    // Read the source file
-    std::ifstream sourceFile(sourceFilePath);
-    if (!sourceFile.is_open())
+    // try
     {
-        std::cerr << "**************** Failed to open source file: " << sourceFilePath << std::endl;
-        return false;
+        std::cout << "Current directory path: " << std::filesystem::current_path().string() << std::endl;
+
+        // Read the source file
+        std::ifstream sourceFile(sourceFilePath);
+        if (!sourceFile.is_open())
+        {
+            std::cerr << "**************** Failed to open source file: " << sourceFilePath << std::endl;
+            return false;
+        }
+
+        static std::string s_pragmaStr = "#define __cl__\r\n";
+        std::stringstream sourceStream;
+        sourceStream << sourceFile.rdbuf();
+        auto sourceStr = s_pragmaStr + sourceStream.str();
+
+        // Create the OpenCL program
+        auto &context = Context::get();
+        cl::Program program(context, sourceStr, false);
+
+        // Build the program
+        if (program.build("-cl-mad-enable -cl-fast-relaxed-math") != CL_SUCCESS)
+        {
+            std::cerr << "**************** Failed to build program" << std::endl;
+            std::cerr << "**************** Build log:" << std::endl;
+            std::cerr << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
+            return false;
+        }
+        m_program = program;
+
+        // Extract all kernels from the program
+        std::vector<cl::Kernel> kernels;
+        program.createKernels(&kernels);
+        if (kernels.size() > 0)
+        {
+            std::cout << "----------------------------------------------------------\n";
+            std::cout << "Kernels: " << kernels.size() << std::endl;
+        }
+        for (const auto &k : kernels)
+        {
+            auto name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+            m_kernelMap[name] = k;
+            std::cout << "\tKernel: " << name << std::endl;
+        }
+        if (kernels.size() > 0)
+            std::cout << "----------------------------------------------------------\n";
     }
-
-    static std::string s_pragmaStr = "#define __cl__\r\n";
-    std::stringstream sourceStream;
-    sourceStream << sourceFile.rdbuf();
-    auto sourceStr = s_pragmaStr + sourceStream.str();
-
-    // Create the OpenCL program
-    cl::Program::Sources sources(1, std::make_pair(sourceFilePath.c_str(), sourceFilePath.length()));
-    auto &context = Context::get();
-    cl::Program program(context, sourceStr);
-
-    // Build the program
-    if (program.build() != CL_SUCCESS)
-    {
-        std::cerr << "**************** Failed to build program" << std::endl;
-        std::cerr << "**************** Build log:" << std::endl;
-        std::cerr << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(context.getInfo<CL_CONTEXT_DEVICES>()[0]) << std::endl;
-        return false;
-    }
-    m_program = program;
-
-    // Extract all kernels from the program
-    std::vector<cl::Kernel> kernels;
-    program.createKernels(&kernels);
-    if (kernels.size() > 0)
-    {
-        std::cout << "----------------------------------------------------------\n";
-        std::cout << "Kernels: " << kernels.size() << std::endl;
-    }
-    for (const auto &k : kernels)
-    {
-        auto name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-        m_kernelMap[name] = k;
-        std::cout << "\tKernel: " << name << std::endl;
-    }
-    if (kernels.size() > 0)
-        std::cout << "----------------------------------------------------------\n";
-
+    // catch (cl::BuildError &err)
+    // {
+    //     std::cout << err.getBuildLog()[0].second;
+    //     return false;
+    // }
+    // catch (cl::Error &err)
+    // {
+    //     std::cout << "Error code: " << err.err() << " Error said: " << err.what();
+    //     return false;
+    // }
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
