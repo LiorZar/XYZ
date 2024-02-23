@@ -71,13 +71,13 @@ int main()
 
     //    filter.ReadFromFile("../../data/4/filter.bin");
     filter.ReadFromFile("../../../data/FILTER.32fc");
-    curr.ReadFromFile("../../../data/Chann_current1.32fc");
-    prev.ReadFromFile("../../../data/Chann_prev1.32fc");
-    result.ReadFromFile("../../../data/Chann_out1.32fc", false);
-    fft_out.ReadFromFile("../../../data/FFT_OUT1.32fc");
-    abs_prev.ReadFromFile("../../../data/FIR_PREV1.32fc"); //
-    abs_out.ReadFromFile("../../../data/ABS_OUT1.32fc");
-    fir_out.ReadFromFile("../../../data/FIR_CURRENT1.32fc");
+    curr.ReadFromFile("../../../data/Chann_current2.32fc");
+    prev.ReadFromFile("../../../data/Chann_prev2.32fc");
+    result.ReadFromFile("../../../data/Chann_out2.32fc", false);
+    fft_out.ReadFromFile("../../../data/FFT_OUT2.32fc");
+    abs_prev.ReadFromFile("../../../data/FIR_PREV2.32fc"); //
+    abs_out.ReadFromFile("../../../data/ABS_OUT2.32fc");
+    fir_out.ReadFromFile("../../../data/FIR_OUT2.32fc");
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
@@ -126,7 +126,8 @@ int main()
         el.GStamp("FFT V", FFT::Dispatch(true, out, samples_per_channel));
         el.GStamp("ABS", program.Dispatch1D("AbsMag", num_of_samples, GRP, *out, *currAbs, num_of_samples));
         //  el.GStamp("convolve1D", program.Dispatch1D("convolve1D", num_of_samples, GRP, *abs_prev, *currAbs, *firFilter, *currFir, num_of_samples, 7, num_of_channels));
-        // el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, *gl, samples_per_channel, num_of_channels));
+        el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, *gl, samples_per_channel, num_of_channels));
+        // el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *abs_out, *currFir, *gl, samples_per_channel, num_of_channels));
     }
     abs_prev.Download();
     currAbs.Download();
@@ -134,23 +135,23 @@ int main()
     // out.Download();
     currFir.Download();
     gl.Download();
-    /*
-    for(int i = 120; i < currAbs.size(); ++i)
-    {
-        const int sample = i/num_of_channels;
-        const int channel = i%num_of_channels;
-        float res1 = 0;
-        float res2 = fir_out[i];
-        for(int k = 0; k < 7; ++k)
-        {
-//            res1 += currAbs[(sample - k)*num_of_channels + channel];
-            res1 += abs_out[i - k*num_of_channels];
-        }
-        res1 *= F7;
-        float d = std::abs(res1 - res2);
-        if(d > 1e-6)
-            d++;
-    }*/
+
+    // for (int i = 120; i < currAbs.size(); ++i)
+    // {
+    //     const int sample = i / num_of_channels;
+    //     const int channel = i % num_of_channels;
+    //     float res1 = 0;
+    //     float res2 = fir_out[i];
+    //     for (int k = 0; k < 7; ++k)
+    //     {
+    //         //            res1 += currAbs[(sample - k)*num_of_channels + channel];
+    //         res1 += abs_out[i - k * num_of_channels] * F7;
+    //     }
+    //     // res1 *= F7;
+    //     float d = std::abs(res1 - res2);
+    //     if (d > 1e-6)
+    //         d++;
+    // }
 
     el.Stamp("Data downloaded");
     int errors = 0;
@@ -158,7 +159,8 @@ int main()
     //    std::cout << "Errors: " << errors << std::endl;
     //    errors = Compare(&out, &fft_out, num_of_samples);
     errors = Compare(&currAbs, &abs_out, num_of_samples);
-    // errors = Compare(&currFir, &fir_out, num_of_samples);
+    std::cout << "Errors: " << errors << std::endl;
+    errors = Compare(&currFir, &fir_out, num_of_samples);
     std::cout << "Errors: " << errors << std::endl;
     el.Stamp("Compare");
     std::cout << "----------------------------------------------------------\n";
