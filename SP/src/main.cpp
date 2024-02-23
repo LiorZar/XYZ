@@ -54,7 +54,7 @@ int main()
     Context::getInstance();
     FFT::getInstance();
     el.Stamp("FFT init");
-    Program program("../../src/kernels/main.cl");
+    Program program("../src/kernels/main.cl");
 
     // files for testing
     Buffer<int> gl(10);
@@ -70,14 +70,14 @@ int main()
     firFilter.host().resize(7, F7);
 
     //    filter.ReadFromFile("../../data/4/filter.bin");
-    filter.ReadFromFile("../../../data/FILTER.32fc");
-    curr.ReadFromFile("../../../data/Chann_current2.32fc");
-    prev.ReadFromFile("../../../data/Chann_prev2.32fc");
-    result.ReadFromFile("../../../data/Chann_out2.32fc", false);
-    fft_out.ReadFromFile("../../../data/FFT_OUT2.32fc");
-    abs_prev.ReadFromFile("../../../data/FIR_PREV2.32fc"); //
-    abs_out.ReadFromFile("../../../data/ABS_OUT2.32fc");
-    fir_out.ReadFromFile("../../../data/FIR_OUT2.32fc");
+    filter.ReadFromFile("../../data/FILTER.32fc");
+    curr.ReadFromFile("../../data/Chann_current2.32fc");
+    prev.ReadFromFile("../../data/Chann_prev2.32fc");
+    result.ReadFromFile("../../data/Chann_out2.32fc", false);
+    fft_out.ReadFromFile("../../data/FFT_OUT2.32fc");
+    abs_prev.ReadFromFile("../../data/FIR_PREV2.32fc"); //
+    abs_out.ReadFromFile("../../data/ABS_OUT2.32fc");
+    fir_out.ReadFromFile("../../data/FIR_OUT2.32fc");
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
