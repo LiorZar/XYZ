@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="main.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="cu">
+      <UniqueIdentifier>{bff3d039-aa68-43d9-8e30-6074893a1b73}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cu\defines.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+    <ClInclude Include="cu\device.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+    <ClInclude Include="cu\global.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+    <ClInclude Include="cu\GPU.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+    <ClInclude Include="cu\Utils.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+    <ClInclude Include="cu\version.h">
+      <Filter>cu</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cu\global.cpp">
+      <Filter>cu</Filter>
+    </ClCompile>
+    <ClCompile Include="cu\GPU.cpp">
+      <Filter>cu</Filter>
+    </ClCompile>
+    <ClCompile Include="cu\Utils.cpp">
+      <Filter>cu</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
