@@ -54,17 +54,27 @@ public:
 
     bool ReadFromFile(const std::string &path, bool upload = true)
     {
-        // temp = ReadFile<T>(path);
-        // dirty = true;
-        // if (upload)
-        //     Upload();
-        // return !_data.empty();
-        return false;
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open())
+        {
+            std::cerr << "**************** Failed to open file: " << path << std::endl;
+            return false;
+        }
+        file.seekg(0, std::ios::end);
+        size_t size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        size_t count = size / sizeof(T);
+        reallocate(count);
+
+        file.read(reinterpret_cast<char *>(hata), size);
+        if (upload)
+            RefreshUp(count);
+        return true;
     }
     void WriteToFile(const std::string &path)
     {
-        // std::ofstream file(path, std::ios::binary);
-        // file.write(reinterpret_cast<const char *>(_data.data()), sizeof(T) * _data.size());
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char *>(hata), sizeof(T) * m_size);
     }
 
     void swap(gbuffer<T> &buff)
