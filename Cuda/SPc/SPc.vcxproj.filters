@@ -2,6 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CudaCompile Include="main.cu" />
+    <CudaCompile Include="SP.cu" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cu">
@@ -30,6 +31,10 @@
     <ClInclude Include="cu\buffer.hpp">
       <Filter>cu</Filter>
     </ClInclude>
+    <ClInclude Include="SP.cuh" />
+    <ClInclude Include="cu\FFT.h">
+      <Filter>cu</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu\global.cpp">
@@ -39,6 +44,10 @@
       <Filter>cu</Filter>
     </ClCompile>
     <ClCompile Include="cu\Utils.cpp">
+      <Filter>cu</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="cu\FFT.cpp">
       <Filter>cu</Filter>
     </ClCompile>
   </ItemGroup>

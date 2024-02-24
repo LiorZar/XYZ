@@ -1,6 +1,12 @@
 #pragma once
 //--------------------------------------------------------------------------------------------------------------------//
-#include <helper_math.h>
+#include "helper_math.h"
+//--------------------------------------------------------------------------------------------------------------------//
+__device__ __forceinline__ int getI() { return (blockIdx.x * blockDim.x + threadIdx.x); }
+__device__ __forceinline__ int getJ() { return (blockIdx.y * blockDim.y + threadIdx.y); }
+__device__ __forceinline__ int getK() { return (blockIdx.z * blockDim.z + threadIdx.z); }
+__device__ __forceinline__ int2 getIJ() { return make_int2(getI(), getJ()); }
+__device__ __forceinline__ int3 getIJK() { return make_int3(getI(), getJ(), getK()); }
 //--------------------------------------------------------------------------------------------------------------------//
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
@@ -168,7 +174,7 @@ inline __host__ __device__ int3 operator/(const int3 &a, const int3 &b)
     return make_int3(a.x / b.x, a.y / b.y, a.z / b.z);
 }
 //--------------------------------------------------------------------------------------------------------------------//
-__host__ __device__ __inline unsigned int Div(unsigned int v, unsigned int m = WORK)
+__host__ __device__ __inline unsigned int Div(unsigned int v, unsigned int m)
 {
     return (v + m - 1) / m;
 }

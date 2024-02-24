@@ -1,7 +1,8 @@
 #pragma once
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#include <vector_types.h>
 #include <windows.h>
 #include <string>
 #include <vector>
@@ -15,6 +16,12 @@
 #include <algorithm>
 #include <chrono>
 
+#ifdef min
+#undef min
+#undef max
+#endif
+
+#include "device.h"
 #define NAMESPACE_BEGIN(name) \
     namespace name            \
     {
@@ -42,6 +49,7 @@ typedef s64 l64;
 
 typedef float f32;
 typedef double f64;
+//--------------------------------------------------------------------------------------------------------------------//
 
 //--------------------------------------------------------------------------------------------------------------------//
 const u32 BLOCK = 256;

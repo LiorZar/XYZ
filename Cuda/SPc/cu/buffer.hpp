@@ -99,7 +99,7 @@ public:
             temp.clear();
         }
     }
-    void resize(size_t _size)
+    void resize(size_t _size, const T& val = T())
     {
         clear();
         if (_size > 0)
@@ -114,6 +114,7 @@ public:
             }
             m_size = _size;
             m_gpuSize = _size;
+            std::fill_n(hata, m_size, val);
         }
     }
     void reallocate(size_t _size)
@@ -143,7 +144,7 @@ public:
             return;
         if (count > m_size)
             count = m_size;
-        cu::Download(data, hata, count);
+        cu::Download(data, hata, count, 0);
     }
     void Upload(const T *_data, size_t count)
     {

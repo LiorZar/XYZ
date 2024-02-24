@@ -83,20 +83,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu" />
+    <CudaCompile Include="SP.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cu\buffer.hpp" />
     <ClInclude Include="cu\defines.h" />
     <ClInclude Include="cu\device.h" />
+    <ClInclude Include="cu\FFT.h" />
     <ClInclude Include="cu\global.h" />
     <ClInclude Include="cu\GPU.h" />
     <ClInclude Include="cu\Utils.h" />
     <ClInclude Include="cu\version.h" />
+    <ClInclude Include="SP.cuh" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cu\FFT.cpp" />
     <ClCompile Include="cu\global.cpp" />
     <ClCompile Include="cu\GPU.cpp" />
     <ClCompile Include="cu\Utils.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
