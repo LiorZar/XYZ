@@ -85,6 +85,7 @@
     <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cu\buffer.hpp" />
     <ClInclude Include="cu\defines.h" />
     <ClInclude Include="cu\device.h" />
     <ClInclude Include="cu\global.h" />

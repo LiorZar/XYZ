@@ -27,6 +27,9 @@
     <ClInclude Include="cu\version.h">
       <Filter>cu</Filter>
     </ClInclude>
+    <ClInclude Include="cu\buffer.hpp">
+      <Filter>cu</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu\global.cpp">

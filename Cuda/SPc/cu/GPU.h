@@ -2,6 +2,7 @@
 
 #include "defines.h"
 #include "global.h"
+#include "buffer.hpp"
 
 NAMESPACE_BEGIN(cu);
 
@@ -27,9 +28,8 @@ public:
     static std::string GetWorkingDirectory() { return Get()->m_workDir; }
 
 public:
-	static void _cdecl trace(const char* lpszFormat, ...);
-	static void _cdecl traceLines(const char *_lines);
-
+    static void _cdecl trace(const char *lpszFormat, ...);
+    static void _cdecl traceLines(const char *_lines);
 
 private:
     bool init = false;

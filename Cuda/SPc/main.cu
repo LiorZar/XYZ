@@ -18,7 +18,7 @@ int main()
 {
     
     {
-        gbuffer<int> A(useHost, 5), B(useHost, 5), C(useHost, 5);
+        gbuffer<int> A(5, useHost), B(5, useHost), C(5, useHost);
     
     const int arraySize = 5;
     const int a[arraySize] = { 1, 2, 3, 4, 5 };
