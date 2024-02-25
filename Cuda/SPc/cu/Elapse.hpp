@@ -45,7 +45,7 @@ public:
     {
         auto &event = NextEvent();
         stamps.push_back(name);
-        sync();
+        //sync();
         cudaEventRecord(event);
 		cpu.push_back(std::chrono::high_resolution_clock::now());
 		return event;
