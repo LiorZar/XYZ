@@ -37,11 +37,12 @@ FFT::Plan::~Plan()
     handle = 0;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-#define CHECK(cmd)              \
-    err = cmd;                  \
-    if(CLFFT_SUCCESS != err){   \
+#define CHECK(cmd)                             \
+    err = cmd;                                 \
+    if (CLFFT_SUCCESS != err)                  \
+    {                                          \
         std::cerr << #cmd << err << std::endl; \
-    return false;               \
+        return false;                          \
     }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool FFT::Plan::Init()
@@ -54,15 +55,12 @@ bool FFT::Plan::Init()
     CHECK(clfftSetPlanPrecision(handle, precision));
     CHECK(clfftSetResultLocation(handle, placeness));
     CHECK(clfftSetLayout(handle, iLayout, oLayout));
-    if(dist > 0){
+    if (dist > 0)
+    {
         CHECK(clfftSetPlanDistance(handle, dist, dist));
     }
     CHECK(clfftBakePlan(handle, 1, &Context::Q()(), nullptr, nullptr));
-
-    size_t tmpBufferSize;
-    clfftGetTmpBufSize(handle, &tmpBufferSize);
-    if(tmpBufferSize > 0)
-        tmpBuffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, tmpBufferSize);
+    clfftGetTmpBufSize(handle, &workSize);
 
     return true;
 }
@@ -115,27 +113,27 @@ FFT::FFT()
     std::cout << "clfftSetup: " << err1 << std::endl;
 
     PlanPtr plan;
-//    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
-//    plan->Init();
-//    plans[plan->Key()] = plan;
+    //    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_OUTOFPLACE);
+    //    plan->Init();
+    //    plans[plan->Key()] = plan;
 
-//    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
-//    plan->Init();
-//    plans[plan->Key()] = plan;
+    //    plan = std::make_shared<Plan>(NextPow235(20499), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    //    plan->Init();
+    //    plans[plan->Key()] = plan;
 
-//    plan = std::make_shared<Plan>(NextPow235(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
-//    plan->Init();
-//    plans[plan->Key()] = plan;
+    //    plan = std::make_shared<Plan>(NextPow235(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    //    plan->Init();
+    //    plans[plan->Key()] = plan;
 
     plan = std::make_shared<Plan>(NextPow2(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->Init();
-    plans[plan->Key()] = plan;
+    AddPlan(plan);
 
     plan = std::make_shared<Plan>(20, CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->batchSize = 20000;
     plan->dist = 0;
     plan->Init();
-    plans[plan->Key()] = plan;
+    AddPlan(plan);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::~FFT()
@@ -186,11 +184,11 @@ size_t FFT::NextPow235(size_t n)
 int FFT::Dispatch(bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer, size_t size, size_t split, size_t dist)
 {
     Plan plan(size, CLFFT_COMPLEX_INTERLEAVED, outputBuffer() != null() ? CLFFT_OUTOFPLACE : CLFFT_INPLACE);
-    if(split > 1)
+    if (split > 1)
     {
         plan.batchSize = split;
         plan.sizes[0] /= split;
-        if(dist > 0)
+        if (dist > 0)
             plan.dist = dist;
     }
     return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
@@ -210,7 +208,7 @@ int FFT::dispatch(const Plan &_plan, bool fwd, cl::Buffer &inputBuffer, cl::Buff
         cl::Event event;
         auto &queue = Context::Q();
 
-        auto status = clfftEnqueueTransform(plan->handle, fwd ? CLFFT_FORWARD : CLFFT_BACKWARD, 1, &queue(), 0, NULL, &event(), &inputBuffer(), &outputBuffer(), plan->tmpBuffer());
+        auto status = clfftEnqueueTransform(plan->handle, fwd ? CLFFT_FORWARD : CLFFT_BACKWARD, 1, &queue(), 0, NULL, &event(), &inputBuffer(), &outputBuffer(), tmpBuffer());
 
 #ifdef TIMING
         // queue.finish();
@@ -226,5 +224,15 @@ int FFT::dispatch(const Plan &_plan, bool fwd, cl::Buffer &inputBuffer, cl::Buff
     }
 
     return 0;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+void FFT::AddPlan(PlanPtr plan)
+{
+    if (maxWorkSize < plan->workSize)
+    {
+        maxWorkSize = plan->workSize;
+        tmpBuffer = cl::Buffer(Context::get(), CL_MEM_READ_WRITE, maxWorkSize);
+    }
+    plans[plan->Key()] = plan;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

@@ -25,11 +25,9 @@ private:
         clfftResultLocation placeness = CLFFT_OUTOFPLACE;
         clfftLayout iLayout = CLFFT_COMPLEX_INTERLEAVED;
         clfftLayout oLayout = CLFFT_COMPLEX_INTERLEAVED;
-
-        cl::Buffer tmpBuffer;
+        size_t workSize = 0;
     };
     using PlanPtr = std::shared_ptr<Plan>;
-    std::map<std::string, PlanPtr> plans;
 
 private:
     FFT();
@@ -63,7 +61,11 @@ public:
 
 private:
     int dispatch(const Plan &plan, bool fwd, cl::Buffer &inputBuffer, cl::Buffer &outputBuffer);
+    void AddPlan(PlanPtr plan);
 
 private:
+    cl::Buffer tmpBuffer;
+    size_t maxWorkSize = 0;
+    std::map<std::string, PlanPtr> plans;
     static cl::Buffer null;
 };
