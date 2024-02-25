@@ -82,6 +82,7 @@ bool FFT::Plan::Init()
             break;
         }
     }
+    cufftGetSize(handle, &workSize);
 
     return true;
 }
@@ -147,17 +148,19 @@ FFT::FFT()
     PlanPtr plan;
     plan = std::make_shared<Plan>(NextPow2(20999), CUFFT_C2C);
     plan->Init();
-    plans[plan->Key()] = plan;
+    AddPlan(plan);
 
     plan = std::make_shared<Plan>(20, CUFFT_C2C);
     plan->batchSize = 20000;
     plan->dist = 0;
     plan->Init();
-    plans[plan->Key()] = plan;
+    AddPlan(plan);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::~FFT()
 {
+    if(workArea)
+        cudaFree(workArea);
     plans.clear();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -220,6 +223,25 @@ int FFT::dispatch(const Plan &_plan, bool fwd, float2 *inputBuffer, float2 *outp
     }
 
     return 0;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+void FFT::AddPlan(PlanPtr plan)
+{
+    bool didSizeChange = false;
+    if(maxWorkSize < plan->workSize)
+    {
+        didSizeChange = true;
+        maxWorkSize = plan->workSize;
+        if(workArea)
+            cudaFree(workArea);
+        cudaMalloc(&workArea, maxWorkSize);
+    }
+    plans[plan->Key()] = plan;
+    if(didSizeChange)
+    {
+        for(auto& [_,p]: plans)
+            cufftSetWorkArea(p->handle, workArea);
+    }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 

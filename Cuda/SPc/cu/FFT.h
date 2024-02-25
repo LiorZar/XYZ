@@ -25,9 +25,9 @@ private:
         int sizes[3] = {0, 0, 0};
         int batchSize = 1;
         int dist = 0;
+        size_t workSize = 0;
     };
     using PlanPtr = std::shared_ptr<Plan>;
-    std::map<std::string, PlanPtr> plans;
 
 private:
     FFT();
@@ -85,6 +85,14 @@ private:
     int dispatch(const Plan &_plan, float *inputBuffer, float2 *outputBuffer);
     int dispatch(const Plan &_plan, float2 *inputBuffer, float *outputBuffer);
     int dispatch(const Plan &_plan, bool fwd, float2 *inputBuffer, float2 *outputBuffer);
+
+private:
+    void AddPlan(PlanPtr plan);
+
+private:
+    size_t maxWorkSize = 0;
+    void* workArea = nullptr;
+	std::map<std::string, PlanPtr> plans;	
 };
 
 NAMESPACE_END(cu);

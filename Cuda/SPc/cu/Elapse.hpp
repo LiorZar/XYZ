@@ -32,7 +32,8 @@ public:
                       << ": gpu=" << TimeStr(milliseconds * 1000.f)
                       << ": cpu=" << TimeStr(microseconds) << std::endl;
         }
-        cudaEventElapsedTime(&milliseconds, events[0], events[events.size() - 1]);
+        cudaEventElapsedTime(&milliseconds, events.front(), events.back());
+        microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu.back() - cpu.front()).count();
         std::cout
             << "GPU Total: " << TimeStr(milliseconds * 1000.f) << std::endl
             << "CPU Total: " << TimeStr(microseconds) << std::endl;
@@ -45,7 +46,7 @@ public:
     {
         auto &event = NextEvent();
         stamps.push_back(name);
-        //sync();
+        sync();
         cudaEventRecord(event);
 		cpu.push_back(std::chrono::high_resolution_clock::now());
 		return event;
