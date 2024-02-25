@@ -49,7 +49,6 @@ bool SP::Init()
     out0.ReadFromFile(workDir + "out0.32fc");
     out1.ReadFromFile(workDir + "out1.32fc");
 
-
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
         std::cerr << "Invalid data size" << std::endl;
@@ -61,60 +60,29 @@ bool SP::Init()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::Process()
 {
-    
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
-    sync();
     int tot = 0, errors = 0;
     for (int i = 0; i < num_of_channels; ++i)
         tot += FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
-    sync();
-    errors = Compare(filterFFT, filterFFT0);
-    std::cout << "Errors: " << errors << std::endl;
-
+    
     Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
-    sync();
     Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
-    sync();
-    errors = Compare(currT, currT0);
-    std::cout << "Errors: " << errors << std::endl;
-
-
+    
     tot = 0;
     for (int i = 0; i < num_of_channels; ++i)
         tot += FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    sync();
-    errors = Compare(currT, currT1);
-    std::cout << "Errors: " << errors << std::endl;
-
+    
     convolve2DFreq<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, *filterFFT, num_of_samples_padd);
-    sync();
-
-    errors = Compare(currT, currT2);
-    std::cout << "Errors: " << errors << std::endl;
-
-    sync();
-    tot = 0;
+    
     for (int i = 0; i < num_of_channels; ++i)
         tot += FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
     normalizeSignal<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, num_of_samples_padd, samples_per_channel_padd);
-    sync();
-    errors = Compare(currT, currT3);
-    std::cout << "Errors: " << errors << std::endl;
-
+    
     InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
-    sync();
-    errors = Compare(out, out0);
-    std::cout << "Errors: " << errors << std::endl;
-    errors = Compare(out, result);
-    std::cout << "Errors: " << errors << std::endl;
-
     FFT::Dispatch(true, out, samples_per_channel);
-    sync();
-    errors = Compare(out, out1);
-    std::cout << "Errors: " << errors << std::endl;
     AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
-    sync();
     convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
+    sync();
 
     errors = Compare(currAbs, abs_out);
     std::cout << "Errors: " << errors << std::endl;
