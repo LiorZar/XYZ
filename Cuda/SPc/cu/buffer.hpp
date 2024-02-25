@@ -39,8 +39,8 @@ public:
     {
         clear();
     }
-    T *p() { return data; }
-    const T *p() const { return data; }
+    T *p(int offset = 0) { return data + offset; }
+    const T *p(int offset = 0) const { return data + offset; }
     T *operator*() { return data; }
     const T *operator*() const { return data; }
 
@@ -99,7 +99,7 @@ public:
             temp.clear();
         }
     }
-    void resize(size_t _size, const T& val = T())
+    void resize(size_t _size, const T &val = T())
     {
         clear();
         if (_size > 0)
@@ -138,7 +138,7 @@ public:
 
         cu::Upload(hata, data, count);
     }
-    void RefreshDown(size_t count = size_t(-1))
+    void RefreshDown(size_t count = size_t(-1)) const
     {
         if (m_host)
             return;
@@ -215,5 +215,32 @@ public:
         return hata + _count;
     }
 };
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+static bool CMP(const float &a, const float &b) { return std::abs(a - b) > 1e-6; }
+static bool CMP(const float2 &a, const float2 &b) 
+{ 
+    auto d  = a-b;
+    d = d*d;
+    float f = std::sqrt(d.x + d.y);
+    return f > 1e-5; 
+}
+template <typename T>
+static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
+{
+    if (a.m_size != b.m_size)
+        return int(a.m_size - b.m_size);
+
+    int errors = 0;
+    a.RefreshDown();
+    b.RefreshDown();
+
+    for (size_t i = 0; i < a.m_size; i++)
+    {
+        if (CMP(a.hata[i], b.hata[i]))
+            ++errors;
+    }
+    return errors;
+}
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);
