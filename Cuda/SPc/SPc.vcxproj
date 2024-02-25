@@ -88,6 +88,7 @@
     <ClInclude Include="cu\buffer.hpp" />
     <ClInclude Include="cu\defines.h" />
     <ClInclude Include="cu\device.h" />
+    <ClInclude Include="cu\Elapse.hpp" />
     <ClInclude Include="cu\FFT.h" />
     <ClInclude Include="cu\global.h" />
     <ClInclude Include="cu\GPU.h" />

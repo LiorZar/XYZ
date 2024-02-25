@@ -34,6 +34,9 @@
     <ClInclude Include="cu\FFT.h">
       <Filter>cu</Filter>
     </ClInclude>
+    <ClInclude Include="cu\Elapse.hpp">
+      <Filter>cu</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu\global.cpp">

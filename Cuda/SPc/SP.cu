@@ -1,4 +1,5 @@
 #include "SP.cuh"
+#include "cu/Elapse.hpp"
 
 NAMESPACE_BEGIN(cu);
 
@@ -39,15 +40,7 @@ bool SP::Init()
     fft_out.ReadFromFile(workDir + "FFT_OUT2.32fc");
     abs_prev.ReadFromFile(workDir + "FIR_PREV2.32fc"); //
     abs_out.ReadFromFile(workDir + "ABS_OUT2.32fc");
-    fir_out.ReadFromFile(workDir + "FIR_OUT2.32fc");
-
-    filterFFT0.ReadFromFile(workDir + "filterFFT.32fc");
-    currT0.ReadFromFile(workDir + "currT0.32fc");
-    currT1.ReadFromFile(workDir + "currT1.32fc");
-    currT2.ReadFromFile(workDir + "currT2.32fc");
-    currT3.ReadFromFile(workDir + "currT3.32fc");
-    out0.ReadFromFile(workDir + "out0.32fc");
-    out1.ReadFromFile(workDir + "out1.32fc");
+    fir_out.ReadFromFile(workDir + "FIR_OUT2.32fc");   
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
@@ -60,27 +53,38 @@ bool SP::Init()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::Process()
 {
+    int errors = 0;
+    Elapse el("Process", 16);
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
-    int tot = 0, errors = 0;
+    el.Stamp("Transpose Filter");
+
     for (int i = 0; i < num_of_channels; ++i)
-        tot += FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
-    
+        FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
+    el.Stamp("Filter FFT");
+
     Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
     Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
-    
-    tot = 0;
+    el.Stamp("Transpose Signal");
+
     for (int i = 0; i < num_of_channels; ++i)
-        tot += FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    
+        FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+    el.Stamp("Signal FFT");
+
     convolve2DFreq<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, *filterFFT, num_of_samples_padd);
-    
+    el.Stamp("Convolve");
+
     for (int i = 0; i < num_of_channels; ++i)
-        tot += FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+        FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+    el.Stamp("Signal IFFT");
     normalizeSignal<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, num_of_samples_padd, samples_per_channel_padd);
-    
+    el.Stamp("Normalize");
+
     InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
+    el.Stamp("Inverse Transpose");
     FFT::Dispatch(true, out, samples_per_channel);
+    el.Stamp("Out FFT");
     AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
+    el.Stamp("AbsMag");
     convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
     sync();
 

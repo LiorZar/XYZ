@@ -34,7 +34,6 @@ private:
     gbuffer<float> filter, abs_out, abs_prev, fir_out;
     gbuffer<float2> fft_out;
     gbuffer<float2> prev, curr, out, result;
-    gbuffer<float2> filterFFT0, currT0, currT1, currT2, currT3, out0, out1;
 };
 
 NAMESPACE_END(cu);

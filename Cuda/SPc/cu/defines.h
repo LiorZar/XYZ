@@ -16,6 +16,7 @@
 #include <functional>
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
 
 #ifdef min
 #undef min
