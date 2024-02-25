@@ -6,7 +6,8 @@ int main()
 {
     std::cout << "Current Dir: " << GPU::GetCurrentDirectory() << std::endl;
     std::cout << "Working Dir: " << GPU::GetWorkingDirectory() << std::endl;
-
+      
+    GPU::Set();
     {
         SP sp;
 
