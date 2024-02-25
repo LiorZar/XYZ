@@ -49,6 +49,7 @@ bool SP::Init()
     }
 
     Elapse el("Filter FFT", 16);
+    el.Stamp("Start");
 
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
     el.Stamp("Transpose Filter");
