@@ -20,7 +20,7 @@ __global__ void generateHanningWindow(float *window, int length);
 __global__ void generateHammingWindow(float *window, int length);
 __global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const float *window, float2 *outputSignal, int signalLength, int windowLength, int hopSize, int numSegments);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-const bool useHost = true;
+const bool useHost = false;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 SP::SP() : firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
            filterFFT(num_of_samples_padd, useHost),
@@ -74,7 +74,7 @@ bool SP::Init()
         return false;
     }
 
-    BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
+   // BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
 
     Elapse el("Filter FFT", 16);
     el.Stamp("Start");
@@ -98,33 +98,35 @@ bool SP::Init()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::Process()
 {
-    int errors = 0;
+    int errors = 0, L = 30;
     Elapse el("Process", 16);
+    for (int k = 0; k < 1000; ++k)
+    {
+        Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
+        Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
+        el.Stamp("Transpose Signal", k < L);
 
-    Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
-    Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
-    el.Stamp("Transpose Signal");
+        for (int i = 0; i < num_of_channels; ++i)
+            FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+        el.Stamp("Signal FFT", k < L);
 
-    for (int i = 0; i < num_of_channels; ++i)
-        FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    el.Stamp("Signal FFT");
+        convolve2DFreq<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, *filterFFT, num_of_samples_padd);
+        el.Stamp("Convolve", k < L);
 
-    convolve2DFreq<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, *filterFFT, num_of_samples_padd);
-    el.Stamp("Convolve");
+        for (int i = 0; i < num_of_channels; ++i)
+            FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
+        el.Stamp("Signal IFFT", k < L);
+        normalizeSignal<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, num_of_samples_padd, samples_per_channel_padd);
+        el.Stamp("Normalize", k < L);
 
-    for (int i = 0; i < num_of_channels; ++i)
-        FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-    el.Stamp("Signal IFFT");
-    normalizeSignal<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, num_of_samples_padd, samples_per_channel_padd);
-    el.Stamp("Normalize");
-
-    InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
-    el.Stamp("Inverse Transpose");
-    FFT::Dispatch(true, out, samples_per_channel);
-    el.Stamp("Out FFT");
-    AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
-    el.Stamp("AbsMag");
-    convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
+        InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
+        el.Stamp("Inverse Transpose", k < L);
+        FFT::Dispatch(true, out, samples_per_channel);
+        el.Stamp("Out FFT", k < L);
+        AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
+        el.Stamp("AbsMag", k < L);
+        //convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
+    }
     sync();
 
     errors = Compare(currAbs, abs_out);
@@ -135,16 +137,16 @@ bool SP::Process()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::STFT()
 {
-    const auto &workDir = GPU::GetWorkingDirectory() + "../../../data/";
-    Elapse el("STFT", 4);
+    // const auto &workDir = GPU::GetWorkingDirectory() + "../../../data/";
+    // Elapse el("STFT", 4);
 
-    dim3 blocks(DIV(window_size, GRP), num_of_windows);
-    applyWindowAndSegmentKernel<<<blocks, GRP>>>(*signal1, *hammingWindow, *signal1out, samples_per_channel, window_size, hop_size, num_of_windows);
-    el.Stamp("Apply Window");
-    FFT::dispatch(true, *signal1out, *signal1out, window_size, num_of_windows, 0);
-    el.Stamp("STFT");
-    sync();
-    BMP::STFTComplex2BMP(workDir + "stft.bmp", signal1out.hata, window_size, num_of_windows);
+    // dim3 blocks(DIV(window_size, GRP), num_of_windows);
+    // applyWindowAndSegmentKernel<<<blocks, GRP>>>(*signal1, *hammingWindow, *signal1out, samples_per_channel, window_size, hop_size, num_of_windows);
+    // el.Stamp("Apply Window");
+    // FFT::dispatch(true, *signal1out, *signal1out, window_size, num_of_windows, 0);
+    // el.Stamp("STFT");
+    // sync();
+    // BMP::STFTComplex2BMP(workDir + "stft.bmp", signal1out.hata, window_size, num_of_windows);
 
     return true;
 }

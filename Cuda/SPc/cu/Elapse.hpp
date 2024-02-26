@@ -6,6 +6,13 @@ class Elapse
 {
 private:
     using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+    struct Data
+    {
+        std::string name;
+        float gpu = 0.f;
+        float cpu = 0.f;
+        float count = 0.f;
+    };
     std::vector<TimePoint> cpu;
     std::vector<std::string> stamps;
     std::vector<cudaEvent_t> events;
@@ -17,9 +24,12 @@ public:
     }
     ~Elapse()
     {
-        auto &event = Stamp("End");
-        cudaEventSynchronize(event);
+        Stamp("End");
+        cudaEventSynchronize(events[stamps.size() - 1]);
 
+        int index = 0;
+        std::map<std::string, int> name2index;
+        std::vector<Data> times;
         float milliseconds = 0, microseconds = 0;
         for (auto i = 1U; i < stamps.size(); ++i)
         {
@@ -27,29 +37,49 @@ public:
             auto &end = events[i];
             cudaEventElapsedTime(&milliseconds, start, end);
             microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[i - 1]).count();
+            index = name2index[stamps[i]];
+            if (index == 0)
+            {
+                index = (int)times.size();
+                name2index[stamps[i]] = index;
+                times.push_back({stamps[i]});
+            }
+            times[index].count += 1.f;
+            times[index].gpu += milliseconds;
+            times[index].cpu += microseconds;
 
-            std::cout << stamps[i]
-                      << ": gpu=" << TimeStr(milliseconds * 1000.f)
-                      << ": cpu=" << TimeStr(microseconds) << std::endl;
+            // std::cout << stamps[i]
+            //           << ": gpu=" << TimeStr(milliseconds * 1000.f)
+            //           << ": cpu=" << TimeStr(microseconds) << std::endl;
         }
-        cudaEventElapsedTime(&milliseconds, events.front(), events.back());
-        microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu.back() - cpu.front()).count();
-        std::cout
-            << "GPU Total: " << TimeStr(milliseconds * 1000.f) << std::endl
-            << "CPU Total: " << TimeStr(microseconds) << std::endl;
+        // cudaEventElapsedTime(&milliseconds, events.front(), events.back());
+        // microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu.back() - cpu.front()).count();
+        // std::cout
+        //     << "GPU Total: " << TimeStr(milliseconds * 1000.f) << std::endl
+        //     << "CPU Total: " << TimeStr(microseconds) << std::endl;
+
+        for (auto &time : times)
+        {
+            time.gpu /= time.count;
+            time.cpu /= time.count;
+            std::cout << time.name
+                      << ": gpu=" << TimeStr(time.gpu * 1000.f)
+                      << ": cpu=" << TimeStr(time.cpu) << std::endl;
+        }
 
         for (auto &event : events)
             cudaEventDestroy(event);
     }
 
-    cudaEvent_t &Stamp(const std::string &name)
+    void Stamp(const std::string &name, bool ignore = false)
     {
+        if (ignore)
+            return;
         auto &event = NextEvent();
         stamps.push_back(name);
-        sync();
-        cudaEventRecord(event);
-		cpu.push_back(std::chrono::high_resolution_clock::now());
-		return event;
+        // sync();
+        cudaEventRecord(event, 0);
+        cpu.push_back(std::chrono::high_resolution_clock::now());
     }
     cudaEvent_t &NextEvent()
     {
