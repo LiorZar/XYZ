@@ -74,7 +74,7 @@ bool SP::Init()
         return false;
     }
 
-   // BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
+    // BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
 
     Elapse el("Filter FFT", 16);
     el.Stamp("Start");
@@ -100,8 +100,10 @@ bool SP::Process()
 {
     int errors = 0, L = 30;
     Elapse el("Process", 16);
+    el.Stamp("Start");
     for (int k = 0; k < 1000; ++k)
     {
+        el.Loop("test", true, k < L);
         Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
         Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
         el.Stamp("Transpose Signal", k < L);
@@ -125,7 +127,8 @@ bool SP::Process()
         el.Stamp("Out FFT", k < L);
         AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
         el.Stamp("AbsMag", k < L);
-        //convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
+        convolve1DFir<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
+        el.Loop("test", false, k < L);
     }
     sync();
 

@@ -26,17 +26,35 @@ public:
     {
         Stamp("End");
         cudaEventSynchronize(events[stamps.size() - 1]);
+        sync();
 
         int index = 0;
         std::map<std::string, int> name2index;
         std::vector<Data> times;
+        int loopIndex = -1;
         float milliseconds = 0, microseconds = 0;
         for (auto i = 1U; i < stamps.size(); ++i)
         {
-            auto &start = events[i - 1];
-            auto &end = events[i];
-            cudaEventElapsedTime(&milliseconds, start, end);
-            microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[i - 1]).count();
+            if (std::string::npos != stamps[i].find("loop_s_"))
+            {
+                loopIndex = i;
+                continue;
+            }
+            if (std::string::npos != stamps[i].find("loop_e_") && loopIndex != -1)
+            {
+                auto &start = events[loopIndex];
+                auto &end = events[i];
+                cudaEventElapsedTime(&milliseconds, start, end);
+                microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[loopIndex]).count();
+                loopIndex = -1;
+            }
+            else
+            {
+                auto &start = events[i - 1];
+                auto &end = events[i];
+                cudaEventElapsedTime(&milliseconds, start, end);
+                microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[i - 1]).count();
+            }
             index = name2index[stamps[i]];
             if (index == 0)
             {
@@ -47,16 +65,7 @@ public:
             times[index].count += 1.f;
             times[index].gpu += milliseconds;
             times[index].cpu += microseconds;
-
-            // std::cout << stamps[i]
-            //           << ": gpu=" << TimeStr(milliseconds * 1000.f)
-            //           << ": cpu=" << TimeStr(microseconds) << std::endl;
         }
-        // cudaEventElapsedTime(&milliseconds, events.front(), events.back());
-        // microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu.back() - cpu.front()).count();
-        // std::cout
-        //     << "GPU Total: " << TimeStr(milliseconds * 1000.f) << std::endl
-        //     << "CPU Total: " << TimeStr(microseconds) << std::endl;
 
         for (auto &time : times)
         {
@@ -70,7 +79,14 @@ public:
         for (auto &event : events)
             cudaEventDestroy(event);
     }
+    void Loop(const std::string &name, bool start_or_end, bool ignore = false)
+    {
+        sync();
+		if(ignore)
+			return;
 
+        Stamp(std::string("loop_") + (start_or_end ? "s_" : "e_") + name);
+    }
     void Stamp(const std::string &name, bool ignore = false)
     {
         if (ignore)
