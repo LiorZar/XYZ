@@ -21,6 +21,7 @@ public:
     Elapse(const std::string &name, int eventCount = 10)
     {
         Stamp(name);
+        Stamp("Start");
     }
     ~Elapse()
     {
@@ -69,6 +70,8 @@ public:
 
         for (auto &time : times)
         {
+            if ("Start" == time.name || "End" == time.name)
+                continue;
             time.gpu /= time.count;
             time.cpu /= time.count;
             std::cout << time.name
@@ -82,8 +85,8 @@ public:
     void Loop(const std::string &name, bool start_or_end, bool ignore = false)
     {
         sync();
-		if(ignore)
-			return;
+        if (ignore)
+            return;
 
         Stamp(std::string("loop_") + (start_or_end ? "s_" : "e_") + name);
     }
