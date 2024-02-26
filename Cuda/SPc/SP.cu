@@ -22,6 +22,7 @@ __global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const flo
 __global__ void MinMaxAtomic(const float2 *input, int *output, int size);
 __global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size);
 __global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size);
+__global__ void MinMaxAtomicBlockChunk(const float2 *input, int *output, int chunk, int size);
 __global__ void MinMaxReduction(const float2 *input, int *output, int size);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 const int FRESL = 1000000;
@@ -202,22 +203,36 @@ bool SP::MinMax()
         el.Loop("atomicsBlockShfl", true, k < L);
 
         MinMaxAtomicBlockShfl<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-        //sync();
-        //globals.RefreshDown(2);
+        // sync();
+        // globals.RefreshDown(2);
         el.Loop("atomicsBlockShfl", false, k < L);
     }
 
     globals[0] = FRESL;
     globals[1] = -FRESL;
     globals.RefreshUp(2);
-    for(k = 0; k < LOOPS; ++k)
+    for (k = 0; k < LOOPS; ++k)
     {
         el.Loop("reduction", true, k < L);
 
         MinMaxReduction<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-        //sync();
-        //globals.RefreshDown(2);
+        // sync();
+        // globals.RefreshDown(2);
         el.Loop("reduction", false, k < L);
+    }
+
+    globals[0] = FRESL;
+    globals[1] = -FRESL;
+    globals.RefreshUp(2);
+    int chunk = 8;
+    for (k = 0; k < LOOPS; ++k)
+    {
+        el.Loop("atomicsBlockChunk", true, k < L);
+
+        MinMaxAtomicBlockChunk<<<DIV(num_of_samples, GRP * chunk), GRP>>>(*curr, *globals, chunk, num_of_samples);
+        // sync();
+        // globals.RefreshDown(2);
+        el.Loop("atomicsBlockChunk", false, k < L);
     }
     return true;
 }
@@ -327,6 +342,41 @@ __global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size
         atomicMax_block(&gl[1], maxVal);
     }
     __syncthreads();
+    if (threadIdx.x == 0)
+    {
+        atomicMin(&output[0], gl[0]);
+        atomicMax(&output[1], gl[1]);
+    }
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxAtomicBlockChunk(const float2 *input, int *output, int chunk, int size)
+{
+    int idx = getI() * chunk;
+    // if (idx >= size)
+    //     return;
+    __shared__ int gl[2];
+    if (threadIdx.x == 0)
+    {
+        gl[0] = FRESL;
+        gl[1] = -FRESL;
+    }
+    __syncthreads();
+
+    int smp;
+    int localMin = FRESL;
+    int localMax = -FRESL;
+
+    for (int i = 0; i < chunk && (idx + i) < size; ++i)
+    {
+        smp = input[idx + i].x * FRESL;
+        localMin = min(localMin, smp);
+        localMax = max(localMax, smp);
+    }
+
+    atomicMin_block(&gl[0], localMin);
+    atomicMax_block(&gl[1], localMax);
+    __syncthreads();
+
     if (threadIdx.x == 0)
     {
         atomicMin(&output[0], gl[0]);
