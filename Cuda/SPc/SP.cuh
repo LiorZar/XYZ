@@ -29,9 +29,11 @@ public:
     bool Init();
     bool Process();
     bool STFT();
+    bool MinMax();
 
 private:
     // for gpu
+    gbuffer<int> globals;
     gbuffer<float> firFilter, currAbs, currFir;
     gbuffer<float2> filterFFT;
     gbuffer<float2> prevT, currT, signal1, signal1out;

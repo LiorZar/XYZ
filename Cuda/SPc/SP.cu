@@ -19,10 +19,15 @@ __global__ void convolve1DFir(const float *prev, const float *curr, float *outpu
 __global__ void generateHanningWindow(float *window, int length);
 __global__ void generateHammingWindow(float *window, int length);
 __global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const float *window, float2 *outputSignal, int signalLength, int windowLength, int hopSize, int numSegments);
+__global__ void MinMaxAtomic(const float2 *input, int *output, int size);
+__global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size);
+__global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+const int FRESL = 1000000;
 const bool useHost = false;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-SP::SP() : firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
+SP::SP() : globals(2048, useHost),
+           firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
            filterFFT(num_of_samples_padd, useHost),
            prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost), signal1(samples_per_channel, useHost), signal1out(num_of_windows * window_size, useHost),
            hanningWindow(window_size, useHost), hammingWindow(window_size, useHost),
@@ -77,7 +82,6 @@ bool SP::Init()
     // BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
 
     Elapse el("Filter FFT", 16);
-    el.Stamp("Start");
 
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
     el.Stamp("Transpose Filter");
@@ -98,10 +102,10 @@ bool SP::Init()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::Process()
 {
-    int errors = 0, L = 30;
+    int errors = 0, k = 0, L = 30;
     Elapse el("Process", 16);
-    el.Stamp("Start");
-    for (int k = 0; k < 1000; ++k)
+
+    // for (k = 0; k < 1000; ++k)
     {
         el.Loop("test", true, k < L);
         Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
@@ -152,6 +156,167 @@ bool SP::STFT()
     // BMP::STFTComplex2BMP(workDir + "stft.bmp", signal1out.hata, window_size, num_of_windows);
 
     return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::MinMax()
+{
+    int k = 0, L = 30, LOOPS = 1000;
+    Elapse el("MinMax", 16);
+
+    float cpuVal[2] = {std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};
+    for (const auto &c : curr.cpu())
+    {
+        cpuVal[0] = std::min(cpuVal[0], c.x);
+        cpuVal[1] = std::max(cpuVal[1], c.x);
+    }
+
+    globals[0] = FRESL;
+    globals[1] = -FRESL;
+    globals.RefreshUp(2);
+    for (k = 0; k < LOOPS; ++k)
+    {
+        el.Loop("atomics", true, k < L);
+
+        MinMaxAtomic<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
+
+        el.Loop("atomics", false, k < L);
+    }
+    globals[0] = FRESL;
+    globals[1] = -FRESL;
+    globals.RefreshUp(2);
+    for (k = 0; k < LOOPS; ++k)
+    {
+        el.Loop("atomicsBlock", true, k < L);
+
+        MinMaxAtomicBlock<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
+
+        el.Loop("atomicsBlock", false, k < L);
+    }
+
+    globals[0] = FRESL;
+    globals[1] = -FRESL;
+    globals.RefreshUp(2);
+    for (k = 0; k < LOOPS; ++k)
+    {
+        el.Loop("atomicsBlockShfl", true, k < L);
+
+        MinMaxAtomicBlockShfl<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
+
+        el.Loop("atomicsBlockShfl", false, k < L);
+    }
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxAtomic(const float2 *input, int *output, int size)
+{
+    int idx = getI();
+    if (idx >= size)
+        return;
+
+    int smp = input[idx].x * FRESL;
+    atomicMin(&output[0], smp);
+    atomicMax(&output[1], smp);
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxAtomicI(const int *input, int *output, int size)
+{
+    int idx = getI();
+    if (idx >= size)
+        return;
+
+    int smp = input[idx];
+    atomicMin(&output[0], smp);
+    atomicMax(&output[1], smp);
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size)
+{
+    int idx = getI();
+    if (idx >= size)
+        return;
+    __shared__ int gl[2];
+    if (threadIdx.x == 0)
+    {
+        gl[0] = FRESL;
+        gl[1] = -FRESL;
+    }
+    __syncthreads();
+
+    int smp = input[idx].x * FRESL;
+
+    atomicMin_block(&gl[0], smp);
+    atomicMax_block(&gl[1], smp);
+    __syncthreads();
+
+    if (threadIdx.x == 0)
+    {
+        atomicMin(&output[0], gl[0]);
+        atomicMax(&output[1], gl[1]);
+    }
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__device__ void warpReduceMinMax(int &minVal, int &maxVal)
+{
+    for (int offset = warpSize / 2; offset > 0; offset /= 2)
+    {
+        int shfl_min = __shfl_down_sync(0xffffffff, minVal, offset);
+        int shfl_max = __shfl_down_sync(0xffffffff, maxVal, offset);
+        minVal = min(minVal, shfl_min);
+        maxVal = max(maxVal, shfl_max);
+    }
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size)
+{
+    int idx = getI();
+    if (idx >= size)
+        return;
+
+    const int wrapCount = blockDim.x / warpSize; // 8
+    int laneId = threadIdx.x % warpSize;
+    int warpId = threadIdx.x / warpSize;
+
+    __shared__ int gl[2];
+    __shared__ int vals[8][2];
+    if (threadIdx.x == 0)
+    {
+        gl[0] = FRESL;
+        gl[1] = -FRESL;
+    }
+    __syncthreads();
+
+    int smp = input[idx].x * FRESL;
+    int minVal = smp, maxVal = smp;
+    warpReduceMinMax(minVal, maxVal);
+    if (laneId == 0)
+    {
+        vals[warpId][0] = minVal;
+        vals[warpId][1] = maxVal;
+    }
+    __syncthreads();
+    if (threadIdx.x < wrapCount)
+    {
+        minVal = vals[threadIdx.x][0];
+        maxVal = vals[threadIdx.x][1];
+    }
+    else
+    {
+        minVal = FRESL;
+        maxVal = -FRESL;
+    }
+    if (warpId == 0)
+        warpReduceMinMax(minVal, maxVal);
+    if (laneId == 0)
+    {
+        atomicMin_block(&gl[0], minVal);
+        atomicMax_block(&gl[1], maxVal);
+    }
+    __syncthreads();
+    if (threadIdx.x == 0)
+    {
+        atomicMin(&output[0], gl[0]);
+        atomicMax(&output[1], gl[1]);
+    }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void Transpose1D(const float *input, float *output, const int cols, const int rows, const int new_row_stride)
