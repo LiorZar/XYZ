@@ -2,8 +2,6 @@
 
 NAMESPACE_BEGIN(cu);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-const int LINE_WIDTH = 1;
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
 inline float magnitude(float2 a)
 {
     return std::sqrt(a.x * a.x + a.y * a.y);
@@ -60,7 +58,7 @@ void Complex2Mag(const float2 *data, float *mag, int size)
         mag[i] = magnitude(data[i]);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool BMP::SignalReal2BMP(const std::string &filename, const float *data, int width, int height)
+bool BMP::SignalReal2BMP(const std::string &filename, const float *data, int width, int height, int line_width)
 {
     float minVal, maxVal;
     MinMax(data, width, minVal, maxVal);
@@ -69,7 +67,7 @@ bool BMP::SignalReal2BMP(const std::string &filename, const float *data, int wid
     for (int x = 0; x < width; x++)
     {
         int Y = toY(data[x], minVal, maxVal, height);
-        for (int y = Y - LINE_WIDTH; y < Y + LINE_WIDTH; ++y)
+        for (int y = Y - line_width; y < Y + line_width; ++y)
         {
             if (y < 0 || y >= height)
                 continue;
@@ -83,11 +81,11 @@ bool BMP::SignalReal2BMP(const std::string &filename, const float *data, int wid
     return RGBA2BMP(filename, buffer.data(), width, height);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool BMP::SignalComplex2BMP(const std::string &filename, const float2 *cdata, int width, int height)
+bool BMP::SignalComplex2BMP(const std::string &filename, const float2 *cdata, int width, int height, int line_width)
 {
     std::vector<float> data(width);
     Complex2Mag(cdata, data.data(), width);
-    return SignalReal2BMP(filename, data.data(), width, height);
+    return SignalReal2BMP(filename, data.data(), width, height, line_width);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool BMP::STFTComplex2BMP(const std::string &filename, const float2 *cdata, int width, int height)
@@ -101,7 +99,7 @@ bool BMP::STFTComplex2BMP(const std::string &filename, const float2 *cdata, int 
     for (int i = 0; i < width * height; i++)
         toColor(invLerp(minVal, maxVal, data[i]), buffer.data() + i * 4);
 
-    return RGBA2BMP(filename, buffer.data(), height, width);
+    return RGBA2BMP(filename, buffer.data(), width, height);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool BMP::RGBA2BMP(const std::string &filename, const unsigned char *data, int width, int height)
