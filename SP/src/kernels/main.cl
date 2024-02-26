@@ -278,50 +278,15 @@ __kernel void convolve1DFir(
     const float F7 = 1.f / 7.f;
     const int sample = idx / numChannels;
     const int channel = idx % numChannels;
-    if (sample < 7)
-        return;
+    const int pbase = inputSize + numChannels * 6 + channel;
 
     float smp;
     float result = 0.0f;
-    for (int f = 0; f < 7; ++f)
-    // for (int f = 0, s = sample - 6; f < 7; ++f, ++s)
-
+    for (int f = 0, s = sample - 6; f < 7; ++f, ++s)
     {
-        // smp = s < 0 ? prev[idx - f * numChannels] : curr[idx - f * numChannels];
-        // smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
-        // smp = curr[idx - f * numChannels];
+        smp = s < 0 ? prev[pbase + f * numChannels] : curr[idx - f * numChannels];
         result += smp;
     }
     output[idx] = result * F7;
 }
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-/*__kernel void convolve1DFir(
-    __global const float *prev,
-    __global const float *curr,
-    __global float *output,
-    const int sample_per_channel, // 20,000
-    const int numChannels)        // 20
-{
-    int idx = get_global_id(0);                  // sample index [0, inputSize]
-    if (idx >= sample_per_channel * numChannels) // 400,000
-        return;
-
-    const float F7 = 1.f / 7.f;
-    const int sample = idx / numChannels;
-    const int channel = idx % numChannels;
-
-    float smp;
-    float result = 0.0f;
-    for (int f = 0, s = sample - 7; f < 7; ++f, ++s)
-    {
-        //        smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
-        //        smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
-        if (s < 0)
-            continue;
-        smp = getSample1D(curr, channel, s, numChannels);
-
-        result += smp;
-    }
-    output[idx] = result * F7;
-}*/
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

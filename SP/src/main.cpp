@@ -71,13 +71,13 @@ int main()
 
     //    filter.ReadFromFile("../../data/4/filter.bin");
     filter.ReadFromFile("../../data/FILTER.32fc");
-    curr.ReadFromFile("../../data/Chann_current2.32fc");
-    prev.ReadFromFile("../../data/Chann_prev2.32fc");
-    result.ReadFromFile("../../data/Chann_out2.32fc", false);
-    fft_out.ReadFromFile("../../data/FFT_OUT2.32fc");
-    abs_prev.ReadFromFile("../../data/FIR_PREV2.32fc"); //
-    abs_out.ReadFromFile("../../data/ABS_OUT2.32fc");
-    fir_out.ReadFromFile("../../data/FIR_OUT1.32fc");
+    curr.ReadFromFile("../../data/Chann_current4.32fc");
+    prev.ReadFromFile("../../data/Chann_prev4.32fc");
+    result.ReadFromFile("../../data/Chann_out4.32fc", false);
+    fft_out.ReadFromFile("../../data/FFT_OUT4.32fc");
+    abs_prev.ReadFromFile("../../data/ABS_OUT3.32fc"); //
+    abs_out.ReadFromFile("../../data/ABS_OUT4.32fc");
+    fir_out.ReadFromFile("../../data/FIR_OUT3.32fc");
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
@@ -133,23 +133,6 @@ int main()
     // out.Download();
     currFir.Download();
     gl.Download();
-
-    // for (int i = 120; i < currAbs.size(); ++i)
-    // {
-    //     const int sample = i / num_of_channels;
-    //     const int channel = i % num_of_channels;
-    //     float res1 = 0;
-    //     float res2 = fir_out[i];
-    //     for (int k = 0; k < 7; ++k)
-    //     {
-    //         //            res1 += currAbs[(sample - k)*num_of_channels + channel];
-    //         res1 += abs_out[i - k * num_of_channels] * F7;
-    //     }
-    //     // res1 *= F7;
-    //     float d = std::abs(res1 - res2);
-    //     if (d > 1e-6)
-    //         d++;
-    // }
 
     el.Stamp("Data downloaded");
     //    errors = Compare(&out, &result, num_of_samples);
