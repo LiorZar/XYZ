@@ -224,5 +224,44 @@ __global__ void convolve1DFir(
     output[idx] = result * F7;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void generateHanningWindow(float *window, int length)
+{
+    int idx = getI(); // [0, length)
+    if (idx >= length)
+        return;
 
+    window[idx] = 0.5 * (1 - cos(2 * M_PI * idx / (length - 1)));
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void generateHammingWindow(float *window, int length)
+{
+    int idx = getI(); // [0, length)
+    if (idx >= length)
+        return;
+
+    window[idx] = 0.54 - 0.46 * cos(2 * M_PI * idx / (windowLength - 1));
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void applyWindowAndSegmentKernel(
+    const float2 *inputSignal, // input signal      20,000
+    const float *window,       // window function   1024
+    float2 *outputSignal,      // output signal     38912 = 38 * 1024
+    int signalLength,          // 20,000
+    int windowLength,          // 1024
+    int hopSize,               // 512
+    int numSegments)           // 38
+{
+    int idx = getI(); // [0, 1024)
+    int jdx = getJ(); // [0, 38)
+    if (idx >= windowLength || jdx >= numSegments || jdx * hopSize + idx >= signalLength)
+        return;
+
+    float winValue = window[idx];
+    int ibase = jdx * hopSize + idx;
+    int obase = jdx * windowLength + idx;
+
+    outputSignal[obase].x = inputSignal[ibase].x * winValue;
+    outputSignal[obase].y = inputSignal[ibase].y * winValue;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);
