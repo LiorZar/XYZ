@@ -40,7 +40,7 @@ public:
 
 public:
     template <typename T, typename G>
-    static int Dispatch(bool fwd, T *inputBuffer, G *outputBuffer, int size, int split, int dist = 0)
+    static int dispatch(bool fwd, T *inputBuffer, G *outputBuffer, int size, int batchSize, int dist)
     {
         Plan plan(size);
         if (sizeof(T) != sizeof(G))
@@ -50,14 +50,18 @@ public:
             else
                 plan.type = CUFFT_R2C;
         }
-        if (split > 1)
-        {
-            plan.batchSize = split;
-            plan.sizes[0] /= split;
-            if (dist > 0)
-                plan.dist = dist;
-        }
+        plan.batchSize = batchSize;
+        if (dist > 0)
+            plan.dist = dist;
+
         return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
+    }
+    template <typename T, typename G>
+    static int Dispatch(bool fwd, T *inputBuffer, G *outputBuffer, int size, int split, int dist = 0)
+    {
+        if (split > 1)
+            size /= split;
+        return dispatch(fwd, inputBuffer, outputBuffer, size, split, dist);
     }
     template <typename T>
     static int Dispatch(bool fwd, gbuffer<T> &inputBuffer, int split)
@@ -91,8 +95,8 @@ private:
 
 private:
     size_t maxWorkSize = 0;
-    void* workArea = nullptr;
-	std::map<std::string, PlanPtr> plans;	
+    void *workArea = nullptr;
+    std::map<std::string, PlanPtr> plans;
 };
 
 NAMESPACE_END(cu);
