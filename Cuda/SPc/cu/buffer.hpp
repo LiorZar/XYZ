@@ -48,6 +48,7 @@ public:
     const T *h() const { return hata; }
     T *operator&() { return hata; }
     const T *operator&() const { return hata; }
+    std::vector<T> &cpu() { return temp; }
 
     size_t size() const { return m_size; }
     size_t length() const { return m_size; }
@@ -218,12 +219,12 @@ public:
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 static bool CMP(const float &a, const float &b) { return std::abs(a - b) > 1e-6; }
-static bool CMP(const float2 &a, const float2 &b) 
-{ 
-    auto d  = a-b;
-    d = d*d;
+static bool CMP(const float2 &a, const float2 &b)
+{
+    auto d = a - b;
+    d = d * d;
     float f = std::sqrt(d.x + d.y);
-    return f > 1e-5; 
+    return f > 1e-5;
 }
 template <typename T>
 static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
