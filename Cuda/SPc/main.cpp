@@ -17,6 +17,8 @@ int main()
             return 2;
         if (false == sp.STFT())
             return 3;
+        if (false == sp.MinMax())
+            return 4;
     }
 
     return 0;
