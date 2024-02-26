@@ -37,6 +37,9 @@
     <ClInclude Include="cu\Elapse.hpp">
       <Filter>cu</Filter>
     </ClInclude>
+    <ClInclude Include="cu\BMP.h">
+      <Filter>cu</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cu\global.cpp">
@@ -50,6 +53,9 @@
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="cu\FFT.cpp">
+      <Filter>cu</Filter>
+    </ClCompile>
+    <ClCompile Include="cu\BMP.cpp">
       <Filter>cu</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,5 +1,7 @@
 #include "SP.cuh"
 #include "cu/Elapse.hpp"
+#include "cu/Utils.h"
+#include "cu/BMP.h"
 
 NAMESPACE_BEGIN(cu);
 
@@ -9,6 +11,7 @@ __global__ void Transpose1DC(const float *input, float2 *output, const int cols,
 __global__ void Transpose2D(const float2 *input, float2 *output, const int cols, const int rows, const int new_row_stride, const int offset);
 __global__ void Transpose2D_copy_Prev(const float2 *prev, float2 *output, const int cols, const int rows, const int prevRows, const int new_row_stride);
 __global__ void InverseTranspose2D(const float2 *input, float2 *output, const int cols, const int rows, const int new_row_stride, const int offset);
+__global__ void ExtractChannel(const float2 *input, float2 *output, const int cols, const int rows, const int channel);
 __global__ void convolve2DFreq(float2 *curr, const float2 *filter, int size);
 __global__ void normalizeSignal(float2 *curr, int size, int N);
 __global__ void AbsMag(const float2 *curr, float *out, int size);
@@ -17,17 +20,36 @@ __global__ void generateHanningWindow(float *window, int length);
 __global__ void generateHammingWindow(float *window, int length);
 __global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const float *window, float2 *outputSignal, int signalLength, int windowLength, int hopSize, int numSegments);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-const bool useHost = false;
+const bool useHost = true;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 SP::SP() : firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
            filterFFT(num_of_samples_padd, useHost),
-           prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost),
+           prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost), signal1(samples_per_channel, useHost), signal1out(num_of_windows * window_size, useHost),
            hanningWindow(window_size, useHost), hammingWindow(window_size, useHost),
 
            filter(0, useHost), abs_out(num_of_samples, useHost), abs_prev(0, useHost), fir_out(0, useHost),
            fft_out(0, useHost),
            prev(0, useHost), curr(0, useHost), out(num_of_samples, useHost), result(0, useHost)
 {
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::ToCSV()
+{
+    // const auto &workDir = GPU::GetWorkingDirectory() + "../../../data/";
+    // std::string outDir = "E:/Dropbox/temp/";
+
+    // std::vector<float> data;
+    // std::vector<std::string> names = {"FIR_PREV", "FIR_CURRENT", "FIR_OUT"};
+    // for (int i = 0; i < 5; ++i)
+    // {
+    //     for (const auto &name : names)
+    //     {
+    //         Utils::FromFile(workDir + name + std::to_string(i) + ".32fc", data);
+    //         Utils::ToCSV(outDir + name + std::to_string(i) + ".csv", data.data(), (int)data.size(), num_of_channels);
+    //     }
+    // }
+
+    return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::Init()
@@ -52,6 +74,8 @@ bool SP::Init()
         return false;
     }
 
+    BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter.hata, (int)filter.size(), 512);
+
     Elapse el("Filter FFT", 16);
     el.Stamp("Start");
 
@@ -65,6 +89,9 @@ bool SP::Init()
     generateHanningWindow<<<DIV(window_size, GRP), GRP>>>(*hanningWindow, window_size);
     generateHammingWindow<<<DIV(window_size, GRP), GRP>>>(*hammingWindow, window_size);
     el.Stamp("generate windows");
+
+    ExtractChannel<<<DIV(samples_per_channel, GRP), GRP>>>(*curr, *signal1, num_of_channels, samples_per_channel, 0);
+    el.Stamp("Extract Channel");
 
     return true;
 }
@@ -102,6 +129,22 @@ bool SP::Process()
 
     errors = Compare(currAbs, abs_out);
     std::cout << "Errors: " << errors << std::endl;
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::STFT()
+{
+    const auto &workDir = GPU::GetWorkingDirectory() + "../../../data/";
+    Elapse el("STFT", 4);
+
+    dim3 blocks(DIV(window_size, GRP), num_of_windows);
+    applyWindowAndSegmentKernel<<<blocks, GRP>>>(*signal1, *hammingWindow, *signal1out, samples_per_channel, window_size, hop_size, num_of_windows);
+    el.Stamp("Apply Window");
+    FFT::dispatch(true, *signal1out, *signal1out, window_size, num_of_windows, 0);
+    el.Stamp("STFT");
+    sync();
+    BMP::STFTComplex2BMP(workDir + "stft.bmp", signal1out.hata, window_size, num_of_windows);
 
     return true;
 }
@@ -164,6 +207,15 @@ __global__ void InverseTranspose2D(const float2 *input, float2 *output, const in
     int col = idx % cols; // [0,20)
 
     output[col * rows + row] = input[row * new_row_stride + col + offset];
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void ExtractChannel(const float2 *input, float2 *output, const int cols, const int rows, const int channel)
+{
+    int idx = getI();
+    if (idx >= rows)
+        return;
+
+    output[idx] = input[idx * cols + channel];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void convolve2DFreq(float2 *curr, const float2 *filter, int size)

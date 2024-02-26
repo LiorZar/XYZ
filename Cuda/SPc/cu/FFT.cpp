@@ -155,6 +155,12 @@ FFT::FFT()
     plan->dist = 0;
     plan->Init();
     AddPlan(plan);
+
+	plan = std::make_shared<Plan>(1024, CUFFT_C2C);
+	plan->batchSize = 38;
+	plan->dist = 0;
+	plan->Init();
+	AddPlan(plan);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::~FFT()
@@ -174,8 +180,8 @@ int FFT::dispatch(const Plan &_plan, float *inputBuffer, float2 *outputBuffer)
 {
     cufftResult err;
     auto &plan = plans[_plan.Key()];
-    if (plan->handle == 0)
-    {
+	if(nullptr == plan)
+	{
         plan = std::make_shared<Plan>(_plan);
         if (false == plan->Init())
             return -1;
@@ -190,8 +196,8 @@ int FFT::dispatch(const Plan &_plan, float2 *inputBuffer, float *outputBuffer)
 {
     cufftResult err;
     auto &plan = plans[_plan.Key()];
-    if (plan->handle == 0)
-    {
+	if(nullptr == plan)
+	{
         plan = std::make_shared<Plan>(_plan);
         if (false == plan->Init())
             return -1;
@@ -206,7 +212,7 @@ int FFT::dispatch(const Plan &_plan, bool fwd, float2 *inputBuffer, float2 *outp
 {
     cufftResult err;
     auto &plan = plans[_plan.Key()];
-    if (plan->handle == 0)
+    if (nullptr == plan)
     {
         plan = std::make_shared<Plan>(_plan);
         if (false == plan->Init())

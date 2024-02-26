@@ -31,4 +31,18 @@ int Utils::SplitTrim(const std::string &str, std::vector<std::string> &vec, char
     return (int)vec.size();
 }
 //--------------------------------------------------------------------------------------------------------------------//
+void Utils::ToCSV(const std::string &filename, const float *data, int size, int cols)
+{
+    std::ofstream file(filename);
+    for (int i = 0; i < size; i++)
+    {
+        file << data[i];
+        if (i % cols == cols - 1)
+            file << std::endl;
+        else
+            file << ", ";
+    }
+    file << std::endl;
+}
+//--------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);

@@ -9,12 +9,14 @@ const int num_of_channels = 20;
 const int samples_per_channel = 20000;
 const int filter_size = 500;
 const int window_size = 1024;
-const int hop_size = 512;
+const int overlap_size = 768;
+const int hop_size = window_size - overlap_size;
 // const int samples_per_channel_padd = samples_per_channel + filter_size - 1;
 const int samples_per_channel_padd = (int)FFT::NextPow2(samples_per_channel + filter_size * 2 - 1);
 const int num_of_samples = num_of_channels * samples_per_channel;
 const int num_of_filters = num_of_channels * filter_size;
 const int num_of_samples_padd = num_of_channels * samples_per_channel_padd;
+const int num_of_windows = (samples_per_channel - window_size) / hop_size + 1;
 
 class SP
 {
@@ -23,14 +25,16 @@ public:
     ~SP() = default;
 
 public:
+    bool ToCSV();
     bool Init();
     bool Process();
+    bool STFT();
 
 private:
     // for gpu
     gbuffer<float> firFilter, currAbs, currFir;
     gbuffer<float2> filterFFT;
-    gbuffer<float2> prevT, currT;
+    gbuffer<float2> prevT, currT, signal1, signal1out;
     gbuffer<float> hanningWindow, hammingWindow;
 
     // for testing
