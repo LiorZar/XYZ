@@ -13,12 +13,16 @@ __global__ void convolve2DFreq(float2 *curr, const float2 *filter, int size);
 __global__ void normalizeSignal(float2 *curr, int size, int N);
 __global__ void AbsMag(const float2 *curr, float *out, int size);
 __global__ void convolve1DFir(const float *prev, const float *curr, float *output, const int sample_per_channel, const int numChannels);
+__global__ void generateHanningWindow(float *window, int length);
+__global__ void generateHammingWindow(float *window, int length);
+__global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const float *window, float2 *outputSignal, int signalLength, int windowLength, int hopSize, int numSegments);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 const bool useHost = false;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 SP::SP() : firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
            filterFFT(num_of_samples_padd, useHost),
            prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost),
+           hanningWindow(window_size, useHost), hammingWindow(window_size, useHost),
 
            filter(0, useHost), abs_out(num_of_samples, useHost), abs_prev(0, useHost), fir_out(0, useHost),
            fft_out(0, useHost),
@@ -57,6 +61,10 @@ bool SP::Init()
     for (int i = 0; i < num_of_channels; ++i)
         FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
     el.Stamp("Filter FFT");
+
+    generateHanningWindow<<<DIV(window_size, GRP), GRP>>>(*hanningWindow, window_size);
+    generateHammingWindow<<<DIV(window_size, GRP), GRP>>>(*hammingWindow, window_size);
+    el.Stamp("generate windows");
 
     return true;
 }
@@ -239,7 +247,7 @@ __global__ void generateHammingWindow(float *window, int length)
     if (idx >= length)
         return;
 
-    window[idx] = 0.54 - 0.46 * cos(2 * M_PI * idx / (windowLength - 1));
+    window[idx] = 0.54 - 0.46 * cos(2 * M_PI * idx / (length - 1));
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void applyWindowAndSegmentKernel(
