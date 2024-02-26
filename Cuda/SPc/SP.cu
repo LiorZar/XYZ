@@ -22,6 +22,7 @@ __global__ void applyWindowAndSegmentKernel(const float2 *inputSignal, const flo
 __global__ void MinMaxAtomic(const float2 *input, int *output, int size);
 __global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size);
 __global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size);
+__global__ void MinMaxReduction(const float2 *input, int *output, int size);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 const int FRESL = 1000000;
 const bool useHost = false;
@@ -201,8 +202,22 @@ bool SP::MinMax()
         el.Loop("atomicsBlockShfl", true, k < L);
 
         MinMaxAtomicBlockShfl<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-
+        //sync();
+        //globals.RefreshDown(2);
         el.Loop("atomicsBlockShfl", false, k < L);
+    }
+
+    globals[0] = FRESL;
+    globals[1] = -FRESL;
+    globals.RefreshUp(2);
+    for(k = 0; k < LOOPS; ++k)
+    {
+        el.Loop("reduction", true, k < L);
+
+        MinMaxReduction<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
+        //sync();
+        //globals.RefreshDown(2);
+        el.Loop("reduction", false, k < L);
     }
     return true;
 }
@@ -316,6 +331,44 @@ __global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size
     {
         atomicMin(&output[0], gl[0]);
         atomicMax(&output[1], gl[1]);
+    }
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void MinMaxReduction(const float2 *input, int *output, int size)
+{
+    __shared__ int sdata[256][2];
+
+    int idx = getI();
+    int tid = threadIdx.x;
+
+    if (idx < size)
+    {
+        int smp = input[idx].x * FRESL;
+
+        sdata[tid][0] = smp;
+        sdata[tid][1] = smp;
+    }
+    else
+    {
+        sdata[tid][0] = FRESL;
+        sdata[tid][1] = -FRESL;
+    }
+    __syncthreads();
+
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+    {
+        if (tid < s && (idx + s) < size)
+        {
+            sdata[tid][0] = min(sdata[tid][0], sdata[tid + s][0]);
+            sdata[tid][1] = max(sdata[tid][1], sdata[tid + s][1]);
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0)
+    {
+        atomicMin(&output[0], sdata[0][0]);
+        atomicMax(&output[1], sdata[0][1]);
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
