@@ -56,7 +56,7 @@ __kernel void Transpose1DC(__global const float *input, __global float2 *output,
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void Transpose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows, const int new_row_stride, const int offset)
 {
-    //cols = 20, rows = 20,000, new_row = 21,600
+    // cols = 20, rows = 20,000, new_row = 21,600
     int idx = get_global_id(0);
     if (idx >= cols * rows) // 400,000
         return;
@@ -68,20 +68,20 @@ __kernel void Transpose2D(__global const float2 *input, __global float2 *output,
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void Transpose2D_copy_Prev(__global const float2 *prev, __global float2 *output, const int cols, const int rows, const int prevRows, const int new_row_stride)
 {
-    //cols = 20, rows = 20,000, prevRows = 500, new_row = 21,600
+    // cols = 20, rows = 20,000, prevRows = 500, new_row = 21,600
     int idx = get_global_id(0);
     if (idx >= cols * prevRows) // 10,000
         return;
-    int row = idx / cols;                   // [0,500)
-    int col = idx % cols;                   // [0,20)
-    int prevRow = rows - prevRows + row;    // [19500,20000)
+    int row = idx / cols;                // [0,500)
+    int col = idx % cols;                // [0,20)
+    int prevRow = rows - prevRows + row; // [19500,20000)
 
     output[col * new_row_stride + row] = prev[prevRow * cols + col];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void InverseTranspose2D(__global const float2 *input, __global float2 *output, const int cols, const int rows, const int new_row_stride, const int offset)
 {
-    //cols = 20, rows = 20,000, new_row = 21,600
+    // cols = 20, rows = 20,000, new_row = 21,600
     int idx = get_global_id(0);
     if (idx >= cols * rows) // 400,000
         return;
@@ -260,69 +260,68 @@ __kernel void AbsMag(__global const float2 *curr, __global float *out, int size)
         return;
 
     float2 smp = curr[idx];
-    out[idx] = smp.x*smp.x + smp.y*smp.y;
+    out[idx] = smp.x * smp.x + smp.y * smp.y;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __kernel void convolve1DFir(
-        __global const float *prev,
-        __global const float *curr,
-        __global float *output,
-        __global int *gl,
-        const int sample_per_channel,   // 20,000
-        const int numChannels)          // 20
+    __global const float *prev,
+    __global const float *curr,
+    __global float *output,
+    const int sample_per_channel, // 20,000
+    const int numChannels)        // 20
 {
-    const int inputSize = sample_per_channel*numChannels;
+    const int inputSize = sample_per_channel * numChannels;
     int idx = get_global_id(0); // sample index [0, inputSize]
-    if (idx >= inputSize) // 400,000
+    if (idx >= inputSize)       // 400,000
         return;
 
-//    atomic_add(&gl[0], 1);
-    const float F7 = 1.f/7.f;
+    const float F7 = 1.f / 7.f;
     const int sample = idx / numChannels;
     const int channel = idx % numChannels;
-    if(sample < 7)
+    if (sample < 7)
         return;
 
     float smp;
     float result = 0.0f;
     for (int f = 0; f < 7; ++f)
+    // for (int f = 0, s = sample - 6; f < 7; ++f, ++s)
+
     {
-//        smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
-//        smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
-        smp = curr[idx - f*numChannels];
+        // smp = s < 0 ? prev[idx - f * numChannels] : curr[idx - f * numChannels];
+        // smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
+        // smp = curr[idx - f * numChannels];
         result += smp;
     }
     output[idx] = result * F7;
-
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-//__kernel void convolve1DFir(
-//        __global const float *prev,
-//        __global const float *curr,
-//        __global float *output,
-//        const int sample_per_channel,   // 20,000
-//        const int numChannels)          // 20
-//{
-//    int idx = get_global_id(0); // sample index [0, inputSize]
-//    if (idx >= sample_per_channel*numChannels) // 400,000
-//        return;
-//
-//    const float F7 = 1.f/7.f;
-//    const int sample = idx / numChannels;
-//    const int channel = idx % numChannels;
-//
-//    float smp;
-//    float result = 0.0f;
-//    for (int f = 0, s = sample - 7; f < 7; ++f, ++s)
-//    {
-////        smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
-////        smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
-//        if(s < 0)
-//            continue;
-//        smp = getSample1D(curr, channel, s, numChannels);
-//
-//        result += smp;
-//    }
-//    output[idx] = result * F7;
-//}
-////-------------------------------------------------------------------------------------------------------------------------------------------------//
+/*__kernel void convolve1DFir(
+    __global const float *prev,
+    __global const float *curr,
+    __global float *output,
+    const int sample_per_channel, // 20,000
+    const int numChannels)        // 20
+{
+    int idx = get_global_id(0);                  // sample index [0, inputSize]
+    if (idx >= sample_per_channel * numChannels) // 400,000
+        return;
+
+    const float F7 = 1.f / 7.f;
+    const int sample = idx / numChannels;
+    const int channel = idx % numChannels;
+
+    float smp;
+    float result = 0.0f;
+    for (int f = 0, s = sample - 7; f < 7; ++f, ++s)
+    {
+        //        smp = s < 0 ? prev[base + s + sample_per_channel] : curr[base + s];
+        //        smp = s < 0 ? getSample1D(prev, channel, s + sample_per_channel, numChannels) : getSample1D(curr, channel, s, numChannels);
+        if (s < 0)
+            continue;
+        smp = getSample1D(curr, channel, s, numChannels);
+
+        result += smp;
+    }
+    output[idx] = result * F7;
+}*/
+//-------------------------------------------------------------------------------------------------------------------------------------------------//

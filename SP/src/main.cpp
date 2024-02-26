@@ -77,7 +77,7 @@ int main()
     fft_out.ReadFromFile("../../data/FFT_OUT2.32fc");
     abs_prev.ReadFromFile("../../data/FIR_PREV2.32fc"); //
     abs_out.ReadFromFile("../../data/ABS_OUT2.32fc");
-    fir_out.ReadFromFile("../../data/FIR_OUT2.32fc");
+    fir_out.ReadFromFile("../../data/FIR_OUT1.32fc");
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
@@ -124,7 +124,7 @@ int main()
         el.GStamp("FFT V", FFT::Dispatch(true, out, samples_per_channel));
         el.GStamp("ABS", program.Dispatch1D("AbsMag", num_of_samples, GRP, *out, *currAbs, num_of_samples));
         //  el.GStamp("convolve1D", program.Dispatch1D("convolve1D", num_of_samples, GRP, *abs_prev, *currAbs, *firFilter, *currFir, num_of_samples, 7, num_of_channels));
-        el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, *gl, samples_per_channel, num_of_channels));
+        el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels));
         // el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *abs_out, *currFir, *gl, samples_per_channel, num_of_channels));
     }
     abs_prev.Download();
