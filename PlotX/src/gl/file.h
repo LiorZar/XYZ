@@ -17,7 +17,7 @@ private:
     static bool file2String(const std::string &dir, std::string &file, std::string &sourceCode);
     static bool processIncludes(const std::string &dir, std::string &sourceCode, std::map<int, std::string> &lineMap);
 
-private:
+public:
     std::string filepath;
     std::string sourceCode;
     std::map<int, std::string> fileByLine;
