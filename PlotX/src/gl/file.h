@@ -13,13 +13,17 @@ public:
     bool Load(const std::string &path);
 
 private:
-    void processIncludes(std::string &sourceCode);
+    static bool file2String(const std::string &path, std::string &sourceCode);
+    static bool file2String(const std::string &dir, std::string &file, std::string &sourceCode);
+    static bool processIncludes(const std::string &dir, std::string &sourceCode, std::map<int, std::string> &lineMap);
 
 private:
-    std::string filePath;
+    std::string filepath;
     std::string sourceCode;
-    std::unordered_map<std::string, int> lineCounts;
-    std::unordered_map<std::string, std::string> includedFiles;
+    std::map<int, std::string> fileByLine;
+
+private:
+    static std::set<std::string> s_dirs;
 };
 NAMESPACE_END(gl);
 

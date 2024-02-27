@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.18)
 project(PlotX)
 
 # Specify the C++ standard
@@ -18,14 +18,15 @@ add_executable(PlotX ${SOURCES} ${HEADERS})
 set(GLEW_DIR $ENV{GLEW_DIR})
 set(GLEW_INCLUDE_DIR "${GLEW_DIR}/include")
 set(GLEW_LIBRARY "${GLEW_DIR}/lib/Release/x64/glew32.lib")
-
-message(STATUS "GLEW_DIR: ${GLEW_DIR}")
 message(STATUS "GLEW_LIBRARY: ${GLEW_LIBRARY}")
 message(STATUS "GLEW_INCLUDE_DIR: ${GLEW_INCLUDE_DIR}")
 
 set(GLFW_DIR $ENV{GLFW_DIR})
 set(GLFW_INCLUDE_DIR "${GLFW_DIR}/include")
 set(GLFW_LIBRARY "${GLFW_DIR}/lib-mingw-w64/glfw3.dll")
+message(STATUS "GLFW_LIBRARY: ${GLFW_LIBRARY}")
+message(STATUS "GLFW_INCLUDE_DIR: ${GLFW_INCLUDE_DIR}")
+
 
 set(CLFFT_INCLUDE_DIR $ENV{CLFFT_INCLUDE_DIR})
 set(CLFFT_LIBRARY $ENV{CLFFT_LIBRARY}/clFFT.lib)
