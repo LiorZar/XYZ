@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
+#include <thread>
 #include <functional>
 #include <chrono>
 #include <stdexcept>

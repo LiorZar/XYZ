@@ -10,12 +10,16 @@ class Wnd
 private:
     GLFWwindow *window;
     int width, height;
+    std::string title;
 
 public:
     Wnd(int width, int height, const char *title);
     ~Wnd();
 
-    bool Loop();
+    std::thread Run();
+
+protected:
+    void Loop();
 
 protected:
     virtual bool DrawScene();

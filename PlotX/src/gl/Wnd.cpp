@@ -3,12 +3,28 @@
 
 NAMESPACE_BEGIN(gl);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-Wnd::Wnd(int width, int height, const char *title) : width(width), height(height)
+Wnd::Wnd(int _width, int _height, const char *_title) : width(_width), height(_height), title(_title)
+{
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+Wnd::~Wnd()
+{
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+std::thread Wnd::Run()
+{
+    return std::thread([this]
+                       { Loop(); });
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+void Wnd::Loop()
 {
     if (!glfwInit())
         throw std::runtime_error("Failed to initialize GLFW");
 
-    window = glfwCreateWindow(width, height, title, NULL, NULL);
+    window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -73,22 +89,12 @@ Wnd::Wnd(int width, int height, const char *title) : width(width), height(height
             Wnd *wnd = static_cast<Wnd *>(glfwGetWindowUserPointer(window));
             wnd->OnChar(codepoint);
         });
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-Wnd::~Wnd()
-{
-    glfwDestroyWindow(window);
-    glfwTerminate();
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Wnd::Loop()
-{
+
     while (!shouldClose())
     {
         if (!DrawScene())
-            return false;
+            break;
     }
-    return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Wnd::DrawScene()

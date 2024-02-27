@@ -3,7 +3,8 @@
 int main()
 {
     gl::Wnd window(800, 600, "GLFW Hello World");
-    window.Loop();
+    auto t = window.Run();
+    t.join();
 
     return 0;
 }
