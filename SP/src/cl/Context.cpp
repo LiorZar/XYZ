@@ -26,7 +26,7 @@ Context::Context()
     device = fastestDevice;
 
     context = cl::Context(fastestDevice);
-    cl_queue_properties properties[] = {CL_QUEUE_PROFILING_ENABLE, 0};
+    cl_queue_properties properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0};
     queue = cl::CommandQueue(context, fastestDevice, properties);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
