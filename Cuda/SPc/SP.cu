@@ -88,8 +88,7 @@ bool SP::Init()
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
     el.Stamp("Transpose Filter");
 
-    for (int i = 0; i < num_of_channels; ++i)
-        FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
+    FFT::Dispatch(true, filterFFT, num_of_channels);
     el.Stamp("Filter FFT");
 
     generateHanningWindow<<<DIV(window_size, GRP), GRP>>>(*hanningWindow, window_size);
@@ -107,25 +106,18 @@ bool SP::Process()
     int errors = 0, k = 0, L = 30;
     Elapse el("Process", 16);
 
-    // for (k = 0; k < 1000; ++k)
+    for (k = 0; k < 1000; ++k)
     {
         el.Loop("test", true, k < L);
         Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
         Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
         el.Stamp("Transpose Signal", k < L);
 
-        for (int i = 0; i < num_of_channels; ++i)
-            FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-        el.Stamp("Signal FFT", k < L);
-
+        FFT::Dispatch(true, currT, num_of_channels);
         convolve2DFreq<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, *filterFFT, num_of_samples_padd);
-        el.Stamp("Convolve", k < L);
-
-        for (int i = 0; i < num_of_channels; ++i)
-            FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-        el.Stamp("Signal IFFT", k < L);
+        FFT::Dispatch(false, currT, num_of_channels);
         normalizeSignal<<<DIV(num_of_samples_padd, GRP), GRP>>>(*currT, num_of_samples_padd, samples_per_channel_padd);
-        el.Stamp("Normalize", k < L);
+        el.Stamp("Convolve", k < L);
 
         InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
         el.Stamp("Inverse Transpose", k < L);
@@ -162,7 +154,7 @@ bool SP::STFT()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::MinMax()
 {
-    int k = 0, L = 30, LOOPS = 1000;
+    int k = 0, L = 30, LOOPS = 1;
     Elapse el("MinMax", 16);
 
     float cpuVal[2] = {std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};
