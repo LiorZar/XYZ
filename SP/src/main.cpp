@@ -89,6 +89,7 @@ int main()
     gl.Refresh();
     prevT.Refresh();
     currT.Refresh();
+    filterFFT.Refresh();
     currAbs.Refresh();
     firFilter.Refresh();
     currFir.Refresh();
@@ -97,6 +98,7 @@ int main()
     program.Dispatch1D("Transpose1DC", num_of_filters, GRP, *filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
     int tot = 0;
     int errors = 0;
+    // FFT::Dispatch(true, filterFFT, num_of_channels);
     for (int i = 0; i < num_of_channels; ++i)
         tot += FFT::Dispatch(true, filterFFT, i * samples_per_channel_padd, samples_per_channel_padd);
     el.Stamp("FFT filter");
@@ -106,43 +108,26 @@ int main()
         el.GStamp("Transpose copypv", program.Dispatch1D("Transpose2D_copy_Prev", filter_size * samples_per_channel, GRP, *prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd));
         el.Stamp("Transpose Signal");
 
-        tot = 0;
-        for (int i = 0; i < num_of_channels; ++i)
-            tot += FFT::Dispatch(true, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-        el.GStamp("FWD FFT", tot);
-        el.Stamp("FFT signal channels");
-
+        el.GStamp("FWD FFT", FFT::Dispatch(true, currT, num_of_channels));
         el.GStamp("convolve2DFreq", program.Dispatch1D("convolve2DFreq", num_of_samples_padd, GRP, *currT, *filterFFT, num_of_samples_padd));
-        tot = 0;
-        for (int i = 0; i < num_of_channels; ++i)
-            tot += FFT::Dispatch(false, currT, i * samples_per_channel_padd, samples_per_channel_padd);
-        el.GStamp("BK FFT", tot);
-        el.Stamp("IFFT signal channels");
+        el.GStamp("BK FFT", FFT::Dispatch(false, currT, num_of_channels));
+        el.Stamp("FFT conv");
 
-        //    el.GStamp("InverseTranspose Result1", program.Dispatch1D("InverseTranspose2D", num_of_samples, GRP, *currT, *outT, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size));
         el.GStamp("InverseTranspose Result2", program.Dispatch1D("InverseTranspose2D", num_of_samples, GRP, *currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size));
         el.GStamp("FFT V", FFT::Dispatch(true, out, samples_per_channel));
         el.GStamp("ABS", program.Dispatch1D("AbsMag", num_of_samples, GRP, *out, *currAbs, num_of_samples));
-        //  el.GStamp("convolve1D", program.Dispatch1D("convolve1D", num_of_samples, GRP, *abs_prev, *currAbs, *firFilter, *currFir, num_of_samples, 7, num_of_channels));
         el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels));
-        // el.GStamp("convolve1DFir", program.Dispatch1D("convolve1DFir", num_of_samples, GRP, *abs_prev, *abs_out, *currFir, *gl, samples_per_channel, num_of_channels));
     }
-    abs_prev.Download();
     currAbs.Download();
-    currAbs.Download();
-    // out.Download();
     currFir.Download();
-    gl.Download();
-
     el.Stamp("Data downloaded");
-    //    errors = Compare(&out, &result, num_of_samples);
-    //    std::cout << "Errors: " << errors << std::endl;
-    //    errors = Compare(&out, &fft_out, num_of_samples);
+
     errors = Compare(&currAbs, &abs_out, num_of_samples);
     std::cout << "Errors: " << errors << std::endl;
     errors = Compare(&currFir, &fir_out, num_of_samples);
     std::cout << "Errors: " << errors << std::endl;
     el.Stamp("Compare");
     std::cout << "----------------------------------------------------------\n";
+
     return 0;
 }

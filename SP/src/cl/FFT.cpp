@@ -131,9 +131,13 @@ FFT::FFT()
 
     plan = std::make_shared<Plan>(20, CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
     plan->batchSize = 20000;
-    plan->dist = 0;
     plan->Init();
     AddPlan(plan);
+
+    plan = std::make_shared<Plan>(NextPow2(20999), CLFFT_COMPLEX_INTERLEAVED, CLFFT_INPLACE);
+    plan->batchSize = 20;
+    plan->Init();
+    plans[plan->Key()] = plan;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 FFT::~FFT()
