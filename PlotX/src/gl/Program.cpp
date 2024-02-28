@@ -80,11 +80,6 @@ void Program::use() const
     glUseProgram(programID);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-GLuint Program::get() const
-{
-    return programID;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Program::SetSubroutine(eShaderType type, const std::string &name)
 {
     auto itSub = m_subroutines.find(type);

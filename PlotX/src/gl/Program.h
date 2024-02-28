@@ -28,7 +28,7 @@ public:
 
 public:
     void use() const;
-    GLuint get() const;
+    GLuint opeartor() const { return programID; }
     GLint operator[](const std::string &name) const { return m_uniforms.at(name); }
     bool SetSubroutine(eShaderType type, const std::string &name);
 
