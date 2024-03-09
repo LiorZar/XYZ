@@ -160,33 +160,6 @@ bool SP::XYZProcess()
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-// bool SP::STFT()
-//{
-//     std::string workDir = "/tmp/data/";
-//     Elapse el("STFT", 4);
-//
-//     CreateSignal<<<DIV(test_size, GRP), GRP>>>(*signal1, test_size);
-//     sync();
-//     BMP::SignalComplex2BMP(workDir + "CH.bmp",
-//                            signal1, (int)signal1.size(),
-//                            window_size, eType::Real, 1);
-//
-//     dim3 blocks(DIV(window_size, GRP), num_of_windows);
-//     applyWindowAndSegment<<<blocks, GRP>>>(*signal1, *onesWindow, *signal1out, samples_per_channel, window_size, hop_size, num_of_windows);
-//     el.Stamp("Apply Window");
-//     sync();
-//     BMP::SignalComplex2BMP(workDir + "SG.bmp", signal1out, (int)signal1out.size(), 64, eType::Real, 1);
-//
-//     FFT::dispatch(true, *signal1out, *signal1out, window_size, num_of_windows, 0);
-////    FFT::Dispatch(true, signal1out, 0, window_size);
-//    el.Stamp("STFT");
-////    Transpose2D<<<DIV(num_of_windows*window_size, GRP), GRP>>>(*signal1out, *signal1outT, window_size, num_of_windows, window_size, 0);
-//    sync();
-//    BMP::STFTComplex2BMP(workDir + "stft.bmp", signal1out, window_size, num_of_windows, 1024, 1024, eType::Magnitute);
-//
-//    return true;
-//}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
 __host__ __device__ float2 ChirpK(int k, double InvSF)
 {
     float2 f;
@@ -245,133 +218,6 @@ bool SP::ZYXLoadFile(int channelId, int &downSample, int &signalSize, int &windo
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::Decimate(int channelId)
-{
-    int k = 0, L = 30, LOOPS = 100;
-    Elapse el("Decimate", 16);
-
-    std::string channel = std::to_string(channelId);
-    int downSample, windowSize, signalSize, hopSize, numOfWindows, SF;
-    if (false == ZYXLoadFile(channelId, downSample, signalSize, windowSize, hopSize, numOfWindows, SF))
-    {
-        std::cout << "Failed to load files\n";
-        return false;
-    }
-
-    //    for (k = 0; k < LOOPS; ++k)
-    //    {
-    //        el.Loop("fft2_decimate", true, k < L);
-    //
-    //        FFT::Dispatch(true, chann1Padd, chann1FFT, 1);
-    //
-    //        el.Loop("fft2_decimate", false, k < L);
-    //    }
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("decimate", true, k < L);
-
-        const int downSize = DIV((int)chann1.size(), downSample);
-        signalDown.resize(downSize);
-
-        gbuffer<float> *pFir = nullptr;
-        switch (downSample)
-        {
-        case 2:
-            pFir = &fir2;
-            break;
-        case 4:
-            pFir = &fir4;
-            break;
-        case 8:
-            pFir = &fir8;
-            break;
-        }
-        if (pFir)
-        {
-            auto &fir = *pFir;
-            const int filterSize = (int)fir.size();
-            const int offset = (filterSize / 2) / downSample;
-
-            convolve1DDown<<<DIV(downSize, GRP), GRP>>>(*chann1, *fir, *signalDown, (int)chann1.size(), downSize, filterSize,
-                                                        downSample, offset);
-        }
-        else
-        {
-            Copy(*signalDown, *chann1, downSize);
-        }
-        el.Loop("decimate", false, k < L);
-    }
-
-    int errors = Compare(decimate1, signalDown);
-    std::cout << "Decimate Chann [" + channel + "] Errors: " << errors << std::endl;
-
-    return true;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::Chrip(int channelId)
-{
-    int k = 0, L = 30, LOOPS = 100;
-    Elapse el("Decimate", 16);
-
-    std::string channel = std::to_string(channelId);
-    int downSample, windowSize, signalSize, hopSize, numOfWindows, SF;
-    if (false == ZYXLoadFile(channelId, downSample, signalSize, windowSize, hopSize, numOfWindows, SF, true))
-    {
-        std::cout << "Failed to load files\n";
-        return false;
-    }
-
-    double MFS = 1.0 / (1 << SF);
-
-    dechirp.resize(decimate1.size());
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("chirp", true, k < L);
-
-        DeChirp<<<DIV((int)decimate1.size(), GRP), GRP>>>(*decimate1, *dechirp, dechirp.size(), MFS);
-
-        el.Loop("chirp", false, k < L);
-    }
-    int errors = Compare(dechirp1, dechirp);
-    std::cout << "DeChirp [" + channel + "] Errors: " << errors << std::endl;
-
-    return true;
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::STFT(int channelId)
-{
-    std::string channel = std::to_string(channelId);
-    int downSample, windowSize, signalSize, hopSize, numOfWindows, SF;
-    if (false == ZYXLoadFile(channelId, downSample, signalSize, windowSize, hopSize, numOfWindows, SF))
-    {
-        std::cout << "Failed to load files\n";
-        return false;
-    }
-    overlapSignal.resize(numOfWindows * windowSize);
-
-    std::string workDir = "/tmp/data/";
-    Elapse el("STFT", 4);
-
-    dim3 grid(DIV(windowSize, GRP), numOfWindows);
-    applyOverlapSignal<<<grid, GRP>>>(*dechirp1, *overlapSignal, signalSize, windowSize, hopSize, numOfWindows);
-    el.Stamp("Apply Window");
-
-    FFT::Dispatch(true, overlapSignal, numOfWindows);
-    fftShift<<<grid, GRP>>>(*overlapSignal, windowSize, numOfWindows);
-    el.Stamp("STFT");
-
-    sync();
-    BMP::SignalComplex2BMP(workDir + "SG.bmp", overlapSignal, (int)20000, 128, eType::Real, 1);
-    BMP::STFTComplex2BMP(workDir + "xx_stft" + channel + ".bmp", overlapSignal, windowSize, numOfWindows, numOfWindows, windowSize, eType::Magnitute);
-    el.Stamp("Save Image");
-
-    int errors = Compare(stft1, overlapSignal);
-    std::cout << "STFT Chann [" + channel + "] Errors: " << errors << std::endl;
-
-    return true;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::SingleZYXProcess(int channelId)
 {
     auto channel = std::to_string(channelId);
@@ -382,7 +228,7 @@ bool SP::SingleZYXProcess(int channelId)
         return false;
     }
     double MFS = 1.0 / (1 << SF);
-    int k = 0, L = 30, LOOPS = 1;
+    int k = 0, L = 30, LOOPS = 100;
     Elapse el("Single ZYX Channel", 16);
 
     const int downSize = DIV((int)chann1.size(), downSample);
