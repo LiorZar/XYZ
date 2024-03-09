@@ -21,15 +21,16 @@ public:
     static TraceFn sTraceFn;
 
 public:
+    using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
     static bool Set();
     static int Device();
-    static __int64 CurrTime_us();
+    static TimePoint CurrTime_us() { return std::chrono::high_resolution_clock::now(); }
     static std::string GetCurrentDirectory() { return Get()->m_currDir; }
     static std::string GetWorkingDirectory() { return Get()->m_workDir; }
 
 public:
-    static void _cdecl trace(const char *lpszFormat, ...);
-    static void _cdecl traceLines(const char *_lines);
+    static void __cdecl trace(const char *lpszFormat, ...);
+    static void __cdecl traceLines(const char *_lines);
 
 private:
     bool init = false;
@@ -37,9 +38,6 @@ private:
     std::string m_workDir;
     std::string m_currDir;
     std::string m_projDir;
-
-private:
-    static __int64 timeFreq;
 };
 
 NAMESPACE_END(cu);

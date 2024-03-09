@@ -1,9 +1,9 @@
 #include "GPU.h"
-
+#include <cstring>
+#include <stdarg.h>
 NAMESPACE_BEGIN(cu);
 
 GPU::TraceFn GPU::sTraceFn = nullptr;
-__int64 GPU::timeFreq = 1;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 GPU::GPU()
 {
@@ -13,14 +13,11 @@ GPU::GPU()
     gpu = 0;
     // gpu = count - 1;
 
-//     auto res = cuInit(0);
-//     if (cudaSuccess == res)
-        init = true;
+    //     auto res = cuInit(0);
+    //     if (cudaSuccess == res)
+    init = true;
 
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-    timeFreq = ((__int64)freq.HighPart << 32) + (__int64)freq.LowPart;
-
+#if _WIN32 || _WIN64
     char buff[MAX_PATH];
     ::GetCurrentDirectory(MAX_PATH, buff);
     m_currDir = buff;
@@ -29,6 +26,7 @@ GPU::GPU()
     m_workDir = m_workDir.substr(0, m_workDir.find_last_of("\\/") + 1);
 
     m_projDir = m_currDir.substr(0, m_currDir.find_last_of("\\/") + 1);
+#endif
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 GPU::~GPU()
@@ -54,20 +52,7 @@ int GPU::Device()
     return Get()->gpu;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__int64 GPU::CurrTime_us()
-{
-    cudaDeviceSynchronize();
-
-    LARGE_INTEGER count;
-    QueryPerformanceCounter(&count);
-    __int64 curr = ((__int64)count.HighPart << 32) + (__int64)count.LowPart;
-
-    (curr *= 1000000) /= timeFreq;
-
-    return curr;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-void _cdecl GPU::trace(const char *lpszFormat, ...)
+void __cdecl GPU::trace(const char *lpszFormat, ...)
 {
     // Compile to no op when not needed
     // #if defined  _DEBUG || defined FORCE_DEBUG_OUTPUT
@@ -81,17 +66,17 @@ void _cdecl GPU::trace(const char *lpszFormat, ...)
         bool legalSize = (formatLen < bufferSize);
 
         if (legalSize)
-            vsnprintf_s(szBuffer, bufferSize, bufferSize - 1, lpszFormat, args);
+            sprintf(szBuffer, lpszFormat, args);
 
         szBuffer[1023] = 0;
-        OutputDebugString(szBuffer);
+        printf(szBuffer);
         if (sTraceFn)
             sTraceFn(szBuffer);
         va_end(args);
 
         if (false == legalSize)
         {
-            OutputDebugString(lpszFormat);
+            printf(lpszFormat);
             if (sTraceFn)
                 sTraceFn(lpszFormat);
         }
@@ -99,7 +84,7 @@ void _cdecl GPU::trace(const char *lpszFormat, ...)
     // #endif
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void _cdecl GPU::traceLines(const char *_lines)
+void __cdecl GPU::traceLines(const char *_lines)
 {
     // Compile to no op when not needed
     // #if defined  _DEBUG || defined FORCE_DEBUG_OUTPUT
@@ -110,8 +95,8 @@ void _cdecl GPU::traceLines(const char *_lines)
         for (const char *line = strchr(next, '\n'); line; line = strchr(next, '\n'))
         {
             len = int(line - next);
-            sprintf_s(szBuffer, sizeof(szBuffer) - 1, "%3d %.*s\n", lineNumber, len, next);
-            OutputDebugString(szBuffer);
+            sprintf(szBuffer, "%3d %.*s\n", lineNumber, len, next);
+            printf(szBuffer);
             if (sTraceFn)
             {
                 sTraceFn(szBuffer);
@@ -121,7 +106,7 @@ void _cdecl GPU::traceLines(const char *_lines)
         }
         if (next)
         {
-            sprintf_s(szBuffer, sizeof(szBuffer) - 1, "%3d %s\n", lineNumber, next);
+            printf(szBuffer, "%3d %s\n", lineNumber, next);
         }
     }
     // #endif

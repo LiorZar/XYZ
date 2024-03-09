@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __DEVICE_H__
+#define __DEVICE_H__
 //--------------------------------------------------------------------------------------------------------------------//
 #include "helper_math.h"
 //--------------------------------------------------------------------------------------------------------------------//
@@ -8,6 +9,9 @@ __device__ __forceinline__ int getK() { return (blockIdx.z * blockDim.z + thread
 __device__ __forceinline__ int2 getIJ() { return make_int2(getI(), getJ()); }
 __device__ __forceinline__ int3 getIJK() { return make_int3(getI(), getJ(), getK()); }
 //--------------------------------------------------------------------------------------------------------------------//
+__host__ __device__ inline float Lerp(float a, float b, float t) { return a + t * (b - a); }
+__host__ __device__ inline float InvLerp(float a, float b, float v) { return (v - a) / (b - a); }
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
 #endif
@@ -195,3 +199,4 @@ inline __host__ __device__ float fract(float x)
     return x - floorf(x);
 }
 //--------------------------------------------------------------------------------------------------------------------//
+#endif //__DEVICE_H__

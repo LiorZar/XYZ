@@ -1,10 +1,15 @@
-#pragma once
+#ifndef __DEFINES_H__
+#define __DEFINES_H__
+
+#define _CRT_SECURE_NO_WARNINGS
+#if _WIN32
+#include <windows.h>
+#endif
 
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <vector_types.h>
 #include <cufft.h>
-#include <windows.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -78,3 +83,5 @@ __host__ __device__ __forceinline__ unsigned int nextPowerOf2(unsigned int n)
 }
 //--------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);
+
+#endif //__DEFINES_H__

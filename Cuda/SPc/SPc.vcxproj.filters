@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CudaCompile Include="SP.cu" />
+    <CudaCompile Include="cu\BMP.cu">
+      <Filter>cu</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cu">
@@ -37,7 +40,7 @@
     <ClInclude Include="cu\Elapse.hpp">
       <Filter>cu</Filter>
     </ClInclude>
-    <ClInclude Include="cu\BMP.h">
+    <ClInclude Include="cu\BMP.cuh">
       <Filter>cu</Filter>
     </ClInclude>
   </ItemGroup>
@@ -53,9 +56,6 @@
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="cu\FFT.cpp">
-      <Filter>cu</Filter>
-    </ClCompile>
-    <ClCompile Include="cu\BMP.cpp">
       <Filter>cu</Filter>
     </ClCompile>
   </ItemGroup>

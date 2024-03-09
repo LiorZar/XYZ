@@ -10,15 +10,25 @@ int main()
     GPU::Set();
     {
         SP sp;
-        sp.ToCSV();
         if (false == sp.Init())
             return 1;
-        if (false == sp.Process())
-            return 2;
-        if (false == sp.STFT())
-            return 3;
-        if (false == sp.MinMax())
-            return 4;
+        //        if (false == sp.XYZProcess())
+        //            return 2;
+        for (int i = 1; i <= 24; ++i)
+            sp.SingleZYXProcess(i);
+
+        //        for(int i = 1; i <= 1; ++i)
+        //            sp.Decimate(i);
+        //        for(int i = 1; i <= 24; ++i)
+        //            sp.Chrip(i);
+        //
+        //        for(int i = 1; i <= 1; ++i)
+        //            sp.STFT(i);
+
+        //        if (false == sp.STFT())
+        //            return 3;
+        //        if (false == sp.MinMax())
+        //            return 4;
     }
 
     return 0;

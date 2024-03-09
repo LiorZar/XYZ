@@ -46,8 +46,6 @@ public:
 
     T *h() { return hata; }
     const T *h() const { return hata; }
-    T *operator&() { return hata; }
-    const T *operator&() const { return hata; }
     std::vector<T> &cpu() { return temp; }
 
     size_t size() const { return m_size; }
@@ -142,7 +140,10 @@ public:
     void RefreshDown(size_t count = size_t(-1)) const
     {
         if (m_host)
+        {
+            sync();
             return;
+        }
         if (count > m_size)
             count = m_size;
         cu::Download(data, hata, count, 0);
@@ -170,7 +171,7 @@ public:
     {
         if (_data.size() != m_size)
             _data.resize(m_size);
-        cu::Download(data, _data.data(), m_size);
+        cu::Download(data, _data.data(), m_size, 0);
     }
     T DownloadAt(size_t index) const
     {
@@ -218,13 +219,13 @@ public:
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-static bool CMP(const float &a, const float &b) { return std::abs(a - b) > 1e-6; }
+static bool CMP(const float &a, const float &b) { return std::abs(a - b) < 1e-6; }
 static bool CMP(const float2 &a, const float2 &b)
 {
     auto d = a - b;
     d = d * d;
     float f = std::sqrt(d.x + d.y);
-    return f > 1e-5;
+    return f < 1e-5;
 }
 template <typename T>
 static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
@@ -238,10 +239,26 @@ static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
 
     for (size_t i = 0; i < a.m_size; i++)
     {
-        if (CMP(a.hata[i], b.hata[i]))
+        if (false == CMP(a.hata[i], b.hata[i]))
             ++errors;
     }
     return errors;
+}
+template <typename T>
+static int FindFirstMatch(const gbuffer<T> &a, const gbuffer<T> &b)
+{
+    a.RefreshDown();
+    b.RefreshDown();
+
+    for (size_t i = 0; i < a.m_size; i++)
+    {
+        for (size_t j = 0; j < b.m_size; j++)
+        {
+            if (CMP(a.hata[i], b.hata[j]))
+                return j;
+        }
+    }
+    return -1;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);

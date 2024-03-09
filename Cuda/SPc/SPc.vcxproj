@@ -84,10 +84,11 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="cu\BMP.cu" />
     <CudaCompile Include="SP.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cu\BMP.h" />
+    <ClInclude Include="cu\BMP.cuh" />
     <ClInclude Include="cu\buffer.hpp" />
     <ClInclude Include="cu\defines.h" />
     <ClInclude Include="cu\device.h" />
@@ -100,7 +101,6 @@
     <ClInclude Include="SP.cuh" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cu\BMP.cpp" />
     <ClCompile Include="cu\FFT.cpp" />
     <ClCompile Include="cu\global.cpp" />
     <ClCompile Include="cu\GPU.cpp" />
