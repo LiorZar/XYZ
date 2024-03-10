@@ -1,6 +1,6 @@
 #include "Wnd.h"
 
-NAMESPACE_BEGIN(gl);
+NAMESPACE_BEGIN(ui);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 Wnd::Wnd(int _width, int _height, const char *_title) : width(_width), height(_height), title(_title)
 {
@@ -181,4 +181,4 @@ GLFWwindow *Wnd::get() const
     return window;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-NAMESPACE_END(gl);
+NAMESPACE_END(ui);

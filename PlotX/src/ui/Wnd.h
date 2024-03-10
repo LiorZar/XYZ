@@ -3,7 +3,7 @@
 
 #include "defines.h"
 
-NAMESPACE_BEGIN(gl);
+NAMESPACE_BEGIN(ui);
 
 class Wnd
 {
@@ -38,6 +38,6 @@ private:
     void pollEvents();
     GLFWwindow *get() const;
 };
-NAMESPACE_END(gl);
+NAMESPACE_END(ui);
 
 #endif // __WND_H__

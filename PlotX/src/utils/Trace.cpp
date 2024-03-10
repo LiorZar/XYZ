@@ -6,7 +6,6 @@
 #define GREEN "\033[32m"
 #define YELLOW "\033[33m"
 
-NAMESPACE_BEGIN(gl);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Trace::CheckGLError(const char *_file, const int _line)
 {
@@ -53,7 +52,7 @@ bool Trace::CheckGLError(const char *_file, const int _line)
     return rv;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Trace::Log(const char *_file, const int _line, const char *format, ...)
+__cdecl void Trace::Log(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -65,7 +64,7 @@ void Trace::Log(const char *_file, const int _line, const char *format, ...)
     va_end(args);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Trace::Error(const char *_file, const int _line, const char *format, ...)
+__cdecl void Trace::Error(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -77,7 +76,7 @@ void Trace::Error(const char *_file, const int _line, const char *format, ...)
     va_end(args);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Trace::Warning(const char *_file, const int _line, const char *format, ...)
+__cdecl void Trace::Warning(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -89,4 +88,3 @@ void Trace::Warning(const char *_file, const int _line, const char *format, ...)
     va_end(args);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-NAMESPACE_END(gl);

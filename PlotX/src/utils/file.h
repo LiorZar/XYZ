@@ -3,8 +3,6 @@
 
 #include "defines.h"
 
-NAMESPACE_BEGIN(gl);
-
 class File
 {
 public:
@@ -25,6 +23,5 @@ public:
 private:
     static std::set<std::string> s_dirs;
 };
-NAMESPACE_END(gl);
 
 #endif // __FILE_H__
