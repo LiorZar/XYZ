@@ -228,12 +228,23 @@ static bool CMP(const float2 &a, const float2 &b)
     return f < 1e-5;
 }
 template <typename T>
-static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
+static int Compare(const gbuffer<T> &a, const gbuffer<T> &b, size_t size = 0)
 {
-    if (a.m_size != b.m_size)
-        return int(a.m_size - b.m_size);
+    size_t asize = a.m_size;
+    size_t bsize = b.m_size;
+    if(size > 0)
+    {
+        if(asize < size)
+            return -int(asize);
+        if(bsize < size)
+            return -int(bsize);
+        asize = bsize = size;
+    }
+    
+    if (asize != bsize)
+        return int(asize - bsize);
 
-    int errors = 0;
+    int errors = 0, correct = 0;
     a.RefreshDown();
     b.RefreshDown();
 
@@ -241,6 +252,8 @@ static int Compare(const gbuffer<T> &a, const gbuffer<T> &b)
     {
         if (false == CMP(a.hata[i], b.hata[i]))
             ++errors;
+        else
+            ++correct;
     }
     return errors;
 }
