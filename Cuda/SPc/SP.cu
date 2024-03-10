@@ -50,6 +50,11 @@ SP::SP() : globals(2048, useHost),
            fft_out(0, useHost),
            prev(0, useHost), curr(0, useHost), out(num_of_samples, useHost), tout(num_of_samples, useHost), result(0, useHost)
 {
+#ifdef _WIN32
+    workDir = GPU::GetWorkingDirectory() + "../../../data/";
+#else
+    workDir = "/tmp/data/";
+#endif
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 // #define NON_TRANSPOSE
@@ -57,11 +62,6 @@ SP::SP() : globals(2048, useHost),
 bool SP::Init()
 {
     BMP::Get();
-#ifdef _WIN32
-    std::string workDir = GPU::GetCurrentDirectory() + "/../../data/";
-#else
-    std::string workDir = "/tmp/data/";
-#endif
 
     const float F7 = 1.f / 7.f;
     firFilter.resize(7, F7);
@@ -180,11 +180,6 @@ bool SP::ZYXLoadFile(int channelId, int &downSample, int &signalSize, int &windo
     downSample = 1 << (3 - (CHANNEL_NUM - 1) % 4);
 
     std::string channel = std::to_string(CHANNEL_NUM);
-#ifdef _WIN32
-    std::string workDir = GPU::GetCurrentDirectory() + "/../../data/";
-#else
-    std::string workDir = "/tmp/data/";
-#endif
 
     bool rv = true;
     rv = rv && decimate1.ReadFromFile(workDir + "Bluritsamples/Test0_decimated_num_" + channel + ".32fc");
@@ -228,7 +223,7 @@ bool SP::SingleZYXProcess(int channelId)
         return false;
     }
     double MFS = 1.0 / (1 << SF);
-    int k = 0, L = 30, LOOPS = 100;
+    int k = 0, L = 30, LOOPS = 1000;
     Elapse el("Single ZYX Channel", 16);
 
     const int downSize = DIV((int)chann1.size(), downSample);
@@ -265,11 +260,9 @@ bool SP::SingleZYXProcess(int channelId)
         {
             Copy(*signalDown, *chann1, downSize);
         }
-
         el.Stamp("Decimate", k < L);
 
         DeChirp<<<DIV((int)decimate1.size(), GRP), GRP>>>(*signalDown, *dechirp, dechirp.size(), MFS);
-
         el.Stamp("DeChirp", k < L);
 
         dim3 grid(DIV(windowSize, GRP), numOfWindows);
@@ -291,7 +284,7 @@ bool SP::SingleZYXProcess(int channelId)
 
     errors = Compare(stft1, overlapSignal);
     std::cout << "STFT Chann [" + channel + "] Errors: " << errors << std::endl;
-
+    
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -922,4 +915,3 @@ __global__ void fftShift(float2 *buffer, int windowSize, int numOfWindows)
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);
-

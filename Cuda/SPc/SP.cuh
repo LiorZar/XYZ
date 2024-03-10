@@ -55,6 +55,8 @@ private:
     gbuffer<float> filter, abs_out, abs_prev, fir_out;
     gbuffer<float2> fft_out;
     gbuffer<float2> prev, curr, out, tout, result;
+
+    std::string workDir;
 };
 
 NAMESPACE_END(cu);
