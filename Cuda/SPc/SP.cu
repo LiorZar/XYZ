@@ -7,7 +7,7 @@ NAMESPACE_BEGIN(cu);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 const int FRESL = 1000000;
-const bool useHost = true;
+const bool useHost = false;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void FillDFTWeights(float2 *weights, int N);
 __global__ void MultiDFT(float2 *output, const float2 *data, const float2 *weights, int size, int N);
@@ -223,7 +223,7 @@ bool SP::SingleZYXProcess(int channelId)
         return false;
     }
     double MFS = 1.0 / (1 << SF);
-    int k = 0, L = 30, LOOPS = 1000;
+    int k = 0, L = 30, LOOPS = 100;
     Elapse el("Single ZYX Channel", 16);
 
     const int downSize = DIV((int)chann1.size(), downSample);
@@ -276,13 +276,13 @@ bool SP::SingleZYXProcess(int channelId)
         el.Loop("SingleZYXProcess", false, k < L);
     }
     sync();
-    errors = Compare(decimate1, signalDown);
+    errors = Compare(decimate1, signalDown, decimate1.size());
     std::cout << "Decimate Chann [" + channel + "] Errors: " << errors << std::endl;
 
-    errors = Compare(dechirp1, dechirp);
+    errors = Compare(dechirp1, dechirp, dechirp1.size());
     std::cout << "DeChirp [" + channel + "] Errors: " << errors << std::endl;
 
-    errors = Compare(stft1, overlapSignal);
+    errors = Compare(stft1, overlapSignal, stft1.size());
     std::cout << "STFT Chann [" + channel + "] Errors: " << errors << std::endl;
     
     return true;
