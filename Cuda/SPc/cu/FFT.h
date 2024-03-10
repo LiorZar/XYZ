@@ -34,7 +34,7 @@ private:
     ~FFT();
 
 public:
-    static FFT &getInstance();
+    static FFT &Get();
     static int NextPow2(int n);
     static int NextPow235(int n);
 
@@ -54,7 +54,7 @@ public:
         if (dist > 0)
             plan.dist = dist;
 
-        return getInstance().dispatch(plan, fwd, inputBuffer, outputBuffer);
+        return Get().dispatch(plan, fwd, inputBuffer, outputBuffer);
     }
     template <typename T, typename G>
     static int Dispatch(bool fwd, T *inputBuffer, G *outputBuffer, int size, int split, int dist = 0)

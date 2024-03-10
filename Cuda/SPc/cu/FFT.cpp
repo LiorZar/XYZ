@@ -170,7 +170,7 @@ FFT::~FFT()
     plans.clear();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-FFT &FFT::getInstance()
+FFT &FFT::Get()
 {
     static FFT instance;
     return instance;
@@ -217,6 +217,7 @@ int FFT::dispatch(const Plan &_plan, bool fwd, float2 *inputBuffer, float2 *outp
         plan = std::make_shared<Plan>(_plan);
         if (false == plan->Init())
             return -1;
+        AddPlan(plan);
     }
 
     if (fwd)
@@ -248,6 +249,8 @@ void FFT::AddPlan(PlanPtr plan)
         for(auto& [_,p]: plans)
             cufftSetWorkArea(p->handle, workArea);
     }
+    else
+        cufftSetWorkArea(plan->handle, workArea);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 
