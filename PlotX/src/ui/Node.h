@@ -35,42 +35,30 @@ public:
 public:
     virtual void RefreshSize(bool _withMargin = true);
     virtual void RefreshRectangles();
+    virtual rectangle GetRectangle() const { return m_rectPX; }
     virtual rectangle GetParentRectangle() const;
-    virtual rectangle GetParentViewRectangle() const;
-    virtual rectangle GetParentViewPort() const;
 
     bool IIL() const { return m_includeInLayout; }
     eHorzAlign GetHAlign() const { return m_hAlign; }
     eVertAlign GetVAlign() const { return m_vAlign; }
-    void SetPosition(const glm::vec2 &_tl);
 
     // mouse & state
 public:
-    // virtual bool OnKey(UINT _msg, WPARAM _wParam, int _keys) { return false; }
-    virtual bool OnMouse(const glm::vec2 &_point, const eMouseEventType &_event, int _buttons, int _keys, int _wheel);
+    virtual bool OnKey(int key, int scancode, int action, int mods) { return false; }
+    virtual bool OnChar(unsigned int codepoint) { return false; }
+    virtual bool OnMouse(const vec2 &_point, const eMouseEventType &_event, int _buttons, int _keys, int _wheel);
 
     virtual bool IsEnable() const { return m_isEnabledMouseEvents; };
     virtual void Enable() { m_isEnabledMouseEvents = true; };
     virtual void Disable() { m_isEnabledMouseEvents = false; };
-    virtual void Enable(eBool state)
-    {
-        if (eBool::False == state)
-            Disable();
-        else
-            Enable();
-    }
+    virtual void Enable(eBool state);
     virtual bool IsChecked() const { return m_checked; };
-    virtual void SetChecked(bool _v)
-    {
-        m_checked = _v;
-        m_state = eNodeState::Normal;
-    };
+    virtual void SetChecked(bool _v);
     virtual eNodeState GetState() const { return m_state; }
     virtual std::string GetStateString() const;
 
-    virtual glm::vec2 LocalToGlobal(const glm::vec2 &_pt) const;
-    virtual glm::vec2 GlobalToLocal(const glm::vec2 &_pt) const;
-    virtual glm::vec2 GlobalToLogicView(const glm::vec2 &_pt) const;
+    // virtual vec2 LocalToGlobal(const vec2 &_pt) const;
+    // virtual vec2 GlobalToLocal(const vec2 &_pt) const;
 
     // tree
 public:
@@ -89,11 +77,14 @@ protected:
 protected:
     eHorzAlign m_hAlign = eHorzAlign::Right;
     eVertAlign m_vAlign = eVertAlign::Top;
-    rectangle m_rect;
-    rectangle m_padding;
+    rectangle m_rect = {0, 0, 1, 1};
+    rectangle m_rectPX = {0, 0, 0, 0};
+    rectangle m_padding = {0, 0, 0, 0};
+    color m_color = {1, 1, 1, 1};
 
-    bool m_visible = false;
-    bool m_visibleDraw = false;
+    bool m_visible = true;
+    bool m_visibleDraw = true;
+    bool m_visibleBorder = false;
     bool m_includeInLayout = true;
 
     // mouse & state
@@ -101,7 +92,10 @@ protected:
     bool m_checked = false;
     bool m_isEnabledMouseEvents = false;
     eNodeState m_state = eNodeState::Normal;
-    eNodeState m_disabledState = eNodeState::Normal;
+
+protected:
+    mat3 m_transform = mat3(1.f);
+    mat3 m_globalTransform = mat3(1.f);
 };
 
 NAMESPACE_END(ui);

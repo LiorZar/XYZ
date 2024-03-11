@@ -47,20 +47,29 @@ public:
     bool get(const std::string &name, f64 &val, f64 dflt = 0) const;
     bool get(const std::string &name, std::string &val, const std::string &dflt = "") const;
     std::string attr(const std::string &name, const std::string &dflt = "") const;
+    template <typename T>
+    T Get(const std::string &name, const T &dflt = T()) const
+    {
+        T val;
+        if (get(name, val, dflt))
+            return val;
+        return dflt;
+    }
+    vec4 getColor(const std::string &name, const vec4 &dflt = vec4()) const;
 
 public:
-    bool get(const std::string &name, glm::vec2 &val, const glm::vec2 &dflt = glm::vec2()) const;
-    bool get(const std::string &name, glm::vec3 &val, const glm::vec3 &dflt = glm::vec3()) const;
-    bool get(const std::string &name, glm::vec4 &val, const glm::vec4 &dflt = glm::vec4()) const;
-    bool get(const std::string &name, glm::dvec2 &val, const glm::dvec2 &dflt = glm::dvec2()) const;
-    bool get(const std::string &name, glm::dvec3 &val, const glm::dvec3 &dflt = glm::dvec3()) const;
-    bool get(const std::string &name, glm::dvec4 &val, const glm::dvec4 &dflt = glm::dvec4()) const;
-    bool get(const std::string &name, glm::ivec2 &val, const glm::ivec2 &dflt = glm::ivec2()) const;
-    bool get(const std::string &name, glm::ivec3 &val, const glm::ivec3 &dflt = glm::ivec3()) const;
-    bool get(const std::string &name, glm::ivec4 &val, const glm::ivec4 &dflt = glm::ivec4()) const;
-    bool get(const std::string &name, glm::uvec2 &val, const glm::uvec2 &dflt = glm::uvec2()) const;
-    bool get(const std::string &name, glm::uvec3 &val, const glm::uvec3 &dflt = glm::uvec3()) const;
-    bool get(const std::string &name, glm::uvec4 &val, const glm::uvec4 &dflt = glm::uvec4()) const;
+    bool get(const std::string &name, vec2 &val, const vec2 &dflt = vec2()) const;
+    bool get(const std::string &name, vec3 &val, const vec3 &dflt = vec3()) const;
+    bool get(const std::string &name, vec4 &val, const vec4 &dflt = vec4()) const;
+    bool get(const std::string &name, dvec2 &val, const dvec2 &dflt = dvec2()) const;
+    bool get(const std::string &name, dvec3 &val, const dvec3 &dflt = dvec3()) const;
+    bool get(const std::string &name, dvec4 &val, const dvec4 &dflt = dvec4()) const;
+    bool get(const std::string &name, ivec2 &val, const ivec2 &dflt = ivec2()) const;
+    bool get(const std::string &name, ivec3 &val, const ivec3 &dflt = ivec3()) const;
+    bool get(const std::string &name, ivec4 &val, const ivec4 &dflt = ivec4()) const;
+    bool get(const std::string &name, uvec2 &val, const uvec2 &dflt = uvec2()) const;
+    bool get(const std::string &name, uvec3 &val, const uvec3 &dflt = uvec3()) const;
+    bool get(const std::string &name, uvec4 &val, const uvec4 &dflt = uvec4()) const;
 
 public:
     bool get(const std::string &name, std::vector<bul> &vals) const;
@@ -77,12 +86,12 @@ public:
     bool get(const std::string &name, std::vector<std::string> &vals) const;
 
 public:
-    bool getX(const std::string &name, glm::ivec2 &val) const;
-    bool getX(const std::string &name, glm::ivec3 &val) const;
-    bool getX(const std::string &name, glm::ivec4 &val) const;
-    bool getX(const std::string &name, glm::uvec2 &val) const;
-    bool getX(const std::string &name, glm::uvec3 &val) const;
-    bool getX(const std::string &name, glm::uvec4 &val) const;
+    bool getX(const std::string &name, ivec2 &val) const;
+    bool getX(const std::string &name, ivec3 &val) const;
+    bool getX(const std::string &name, ivec4 &val) const;
+    bool getX(const std::string &name, uvec2 &val) const;
+    bool getX(const std::string &name, uvec3 &val) const;
+    bool getX(const std::string &name, uvec4 &val) const;
     bool getX(const std::string &name, std::vector<s32> &vals) const;
     bool getX(const std::string &name, std::vector<u32> &vals) const;
 
@@ -116,29 +125,6 @@ private:
     std::list<NodePtr> m_children;
     std::unordered_map<std::string, std::string> m_attributes;
 };
-
-template <typename T>
-bool Convert(const std::string &att, T &val)
-{
-    std::stringstream ss(att);
-    ss >> val;
-
-    return true;
-}
-
-template <typename T>
-void Split(const std::string &str, std::vector<T> &vals, const char delim = ',')
-{
-    std::string item;
-    std::stringstream ss(str);
-
-    T t;
-    while (std::getline(ss, item, delim))
-    {
-        Convert(item, t);
-        vals.push_back(t);
-    }
-}
 NAMESPACE_END(Xml);
 
 #endif // __XML_H__

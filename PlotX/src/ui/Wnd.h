@@ -23,13 +23,13 @@ protected:
 
 protected:
     virtual bool DrawScene();
-    virtual void OnMouse(int button, int action, int mods);
-    virtual void OnKey(int key, int scancode, int action, int mods);
     virtual void OnWindowClose();
     virtual void OnWindowSize(int width, int height);
     virtual void OnWindowRefresh();
+    virtual void OnMouse(int button, int action, int mods);
     virtual void OnCursorPosition(double xpos, double ypos);
     virtual void OnScroll(double xoffset, double yoffset);
+    virtual void OnKey(int key, int scancode, int action, int mods);
     virtual void OnChar(unsigned int codepoint);
 
 private:

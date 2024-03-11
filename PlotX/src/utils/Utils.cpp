@@ -14,29 +14,6 @@ int LineCount(const std::string &str, int offset, int end)
     return std::count(s.begin(), s.end(), '\n');
 }
 //--------------------------------------------------------------------------------------------------------------------//
-int Split(const std::string &str, std::vector<std::string> &vec, char delim)
-{
-    vec.clear();
-    std::stringstream ss(str);
-    std::string item;
-    while (std::getline(ss, item, delim))
-        vec.push_back(item);
-    return (int)vec.size();
-}
-//--------------------------------------------------------------------------------------------------------------------//
-int SplitTrim(const std::string &str, std::vector<std::string> &vec, char delim)
-{
-    vec.clear();
-    std::stringstream ss(str);
-    std::string item;
-    while (std::getline(ss, item, delim))
-    {
-        Trim(item);
-        vec.push_back(item);
-    }
-    return (int)vec.size();
-}
-//--------------------------------------------------------------------------------------------------------------------//
 void ToCSV(const std::string &filename, const float *data, int size, int cols)
 {
     std::ofstream file(filename);

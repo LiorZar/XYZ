@@ -4,4 +4,6 @@
 #include <glm.hpp>
 #include <ext.hpp>
 
+using namespace glm;
+
 #endif // __VEC_H__

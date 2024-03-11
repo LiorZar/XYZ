@@ -1,4 +1,5 @@
 #include "Xml.h"
+#include "Utils.h"
 
 NAMESPACE_BEGIN(Xml);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -107,26 +108,26 @@ bool Convert(const std::string &att, T *val)
     std::stringstream ss(att);
 
     for (unsigned i = 0; i < K && std::getline(ss, item, ','); ++i)
-        Convert(item, val[i]);
+        utils::Convert(item, val[i]);
 
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 template <int K, typename T>
-bool getVec(const Node *node, const std::string &name, glm::vec<K, T, glm::defaultp> &val, const glm::vec<K, T, glm::defaultp> &def = glm::vec<K, T, glm::defaultp>())
+bool getVec(const Node *node, const std::string &name, vec<K, T, defaultp> &val, const vec<K, T, defaultp> &def = vec<K, T, defaultp>())
 {
     val = def;
     std::string res;
     if (!node->get(name, res))
         return false;
-    glm::vec4 v;
+    vec4 v;
     Convert<K, T>(res, &val.x);
 
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 template <int K, typename T>
-bool getVecX(const Node *node, const std::string &name, glm::vec<K, T> &val)
+bool getVecX(const Node *node, const std::string &name, vec<K, T> &val)
 {
     std::vector<T> data;
     node->getX(name, data);
@@ -145,7 +146,7 @@ bool getVector(const Node *node, const std::string &name, std::vector<T> &vals)
     if (!node->get(name, res))
         return false;
 
-    Split(res, vals);
+    utils::Split(res, vals);
 
     return true;
 }
@@ -156,7 +157,7 @@ bool Node::get(const std::string &name, bul &val, bul def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, s08 &val, s08 def) const
 {
@@ -164,7 +165,7 @@ bool Node::get(const std::string &name, s08 &val, s08 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, u08 &val, u08 def) const
 {
@@ -172,7 +173,7 @@ bool Node::get(const std::string &name, u08 &val, u08 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, s16 &val, s16 def) const
 {
@@ -180,7 +181,7 @@ bool Node::get(const std::string &name, s16 &val, s16 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, u16 &val, u16 def) const
 {
@@ -188,7 +189,7 @@ bool Node::get(const std::string &name, u16 &val, u16 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, s32 &val, s32 def) const
 {
@@ -196,7 +197,7 @@ bool Node::get(const std::string &name, s32 &val, s32 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, u32 &val, u32 def) const
 {
@@ -204,7 +205,7 @@ bool Node::get(const std::string &name, u32 &val, u32 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, s64 &val, s64 def) const
 {
@@ -212,7 +213,7 @@ bool Node::get(const std::string &name, s64 &val, s64 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, u64 &val, u64 def) const
 {
@@ -220,7 +221,7 @@ bool Node::get(const std::string &name, u64 &val, u64 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, f32 &val, f32 def) const
 {
@@ -228,7 +229,7 @@ bool Node::get(const std::string &name, f32 &val, f32 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 bool Node::get(const std::string &name, f64 &val, f64 def) const
 {
@@ -236,7 +237,7 @@ bool Node::get(const std::string &name, f64 &val, f64 def) const
     val = def;
     if (!get(name, res))
         return false;
-    return Convert(res, val);
+    return utils::Convert(res, val);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Node::get(const std::string &name, std::string &val, const std::string &def) const
@@ -260,18 +261,45 @@ std::string Node::attr(const std::string &name, const std::string &def) const
     return it->second;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::get(const std::string &name, glm::vec2 &val, const glm::vec2 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::vec3 &val, const glm::vec3 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::vec4 &val, const glm::vec4 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::dvec2 &val, const glm::dvec2 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::dvec3 &val, const glm::dvec3 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::dvec4 &val, const glm::dvec4 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::ivec2 &val, const glm::ivec2 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::ivec3 &val, const glm::ivec3 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::ivec4 &val, const glm::ivec4 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::uvec2 &val, const glm::uvec2 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::uvec3 &val, const glm::uvec3 &def) const { return getVec(this, name, val, def); }
-bool Node::get(const std::string &name, glm::uvec4 &val, const glm::uvec4 &def) const { return getVec(this, name, val, def); }
+vec4 Node::getColor(const std::string &name, const vec4 &def) const
+{
+    std::string val;
+    if (!get(name, val) || val.empty() || val.length() < 7)
+        return def;
+
+    vec4 clr;
+    if ('#' == val[0])
+    {
+        val = val.substr(1);
+        clr.r = std::stoul(val.substr(0, 2), nullptr, 16) / 255.0f;
+        clr.g = std::stoul(val.substr(2, 2), nullptr, 16) / 255.0f;
+        clr.b = std::stoul(val.substr(4, 2), nullptr, 16) / 255.0f;
+        clr.a = val.length() > 6 ? std::stoul(val.substr(6, 2), nullptr, 16) / 255.0f : 1.0f;
+    }
+    else
+    {
+        std::vector<f32> vals;
+        utils::Split(val, vals);
+        clr.r = vals.size() > 0 ? vals[0] : 0.0f;
+        clr.g = vals.size() > 1 ? vals[1] : 0.0f;
+        clr.b = vals.size() > 2 ? vals[2] : 0.0f;
+        clr.a = vals.size() > 3 ? vals[3] : 1.0f;
+    }
+    return clr;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool Node::get(const std::string &name, vec2 &val, const vec2 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, vec3 &val, const vec3 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, vec4 &val, const vec4 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, dvec2 &val, const dvec2 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, dvec3 &val, const dvec3 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, dvec4 &val, const dvec4 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, ivec2 &val, const ivec2 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, ivec3 &val, const ivec3 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, ivec4 &val, const ivec4 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, uvec2 &val, const uvec2 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, uvec3 &val, const uvec3 &def) const { return getVec(this, name, val, def); }
+bool Node::get(const std::string &name, uvec4 &val, const uvec4 &def) const { return getVec(this, name, val, def); }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Node::get(const std::string &name, std::vector<bul> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<s08> &vals) const { return getVector(this, name, vals); }
@@ -300,12 +328,12 @@ bool Node::get(const std::string &name, std::vector<std::string> &vals) const
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::getX(const std::string &name, glm::ivec2 &val) const { return getVecX(this, name, val); }
-bool Node::getX(const std::string &name, glm::ivec3 &val) const { return getVecX(this, name, val); }
-bool Node::getX(const std::string &name, glm::ivec4 &val) const { return getVecX(this, name, val); }
-bool Node::getX(const std::string &name, glm::uvec2 &val) const { return getVecX(this, name, val); }
-bool Node::getX(const std::string &name, glm::uvec3 &val) const { return getVecX(this, name, val); }
-bool Node::getX(const std::string &name, glm::uvec4 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, ivec2 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, ivec3 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, ivec4 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, uvec2 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, uvec3 &val) const { return getVecX(this, name, val); }
+bool Node::getX(const std::string &name, uvec4 &val) const { return getVecX(this, name, val); }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Node::getX(const std::string &name, std::vector<s32> &vals) const
 {
