@@ -10,20 +10,6 @@ class Node;
 using NodePtr = std::shared_ptr<Node>;
 using WeakNodePtr = std::weak_ptr<Node>;
 
-using bul = bool;
-using s08 = char;
-using u08 = unsigned char;
-using s16 = signed short;
-using u16 = unsigned short;
-using s32 = signed int;
-using u32 = unsigned int;
-using S32 = signed long;
-using U32 = unsigned long;
-using s64 = signed __int64;
-using u64 = unsigned __int64;
-using f32 = float;
-using f64 = double;
-
 class Node : public std::enable_shared_from_this<Node>
 {
 public:
@@ -55,8 +41,6 @@ public:
     bool get(const std::string &name, u16 &val, u16 dflt = 0) const;
     bool get(const std::string &name, s32 &val, s32 dflt = 0) const;
     bool get(const std::string &name, u32 &val, u32 dflt = 0) const;
-    bool get(const std::string &name, S32 &val, S32 dflt = 0) const;
-    bool get(const std::string &name, U32 &val, U32 dflt = 0) const;
     bool get(const std::string &name, s64 &val, s64 dflt = 0) const;
     bool get(const std::string &name, u64 &val, u64 dflt = 0) const;
     bool get(const std::string &name, f32 &val, f32 dflt = 0) const;
@@ -86,8 +70,6 @@ public:
     bool get(const std::string &name, std::vector<u16> &vals) const;
     bool get(const std::string &name, std::vector<s32> &vals) const;
     bool get(const std::string &name, std::vector<u32> &vals) const;
-    bool get(const std::string &name, std::vector<S32> &vals) const;
-    bool get(const std::string &name, std::vector<U32> &vals) const;
     bool get(const std::string &name, std::vector<s64> &vals) const;
     bool get(const std::string &name, std::vector<u64> &vals) const;
     bool get(const std::string &name, std::vector<f32> &vals) const;

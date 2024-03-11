@@ -206,22 +206,6 @@ bool Node::get(const std::string &name, u32 &val, u32 def) const
         return false;
     return Convert(res, val);
 }
-bool Node::get(const std::string &name, S32 &val, S32 def) const
-{
-    std::string res;
-    val = def;
-    if (!get(name, res))
-        return false;
-    return Convert(res, val);
-}
-bool Node::get(const std::string &name, U32 &val, U32 def) const
-{
-    std::string res;
-    val = def;
-    if (!get(name, res))
-        return false;
-    return Convert(res, val);
-}
 bool Node::get(const std::string &name, s64 &val, s64 def) const
 {
     std::string res;
@@ -296,8 +280,6 @@ bool Node::get(const std::string &name, std::vector<s16> &vals) const { return g
 bool Node::get(const std::string &name, std::vector<u16> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<s32> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<u32> &vals) const { return getVector(this, name, vals); }
-bool Node::get(const std::string &name, std::vector<S32> &vals) const { return getVector(this, name, vals); }
-bool Node::get(const std::string &name, std::vector<U32> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<s64> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<u64> &vals) const { return getVector(this, name, vals); }
 bool Node::get(const std::string &name, std::vector<f32> &vals) const { return getVector(this, name, vals); }
