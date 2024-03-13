@@ -5,11 +5,11 @@
 
 NAMESPACE_BEGIN(ui);
 
-class Node : public std::enable_shared_from_this<Node>
+class Control : public std::enable_shared_from_this<Control>
 {
 public:
-    Node(IWnd *wnd, ContainerPtr parent);
-    virtual ~Node() = default;
+    Control(IWnd *wnd, ContainerPtr parent);
+    virtual ~Control() = default;
 
 public:
     virtual bool Parse(const Xml::Node &data);
@@ -33,7 +33,7 @@ public:
 
     // size & layout
 public:
-    virtual void RefreshSize(bool _withMargin = true);
+    virtual void RefreshSize();
     virtual void RefreshRectangles();
     virtual rectangle GetRectangle() const { return m_rectPX; }
     virtual rectangle GetParentRectangle() const;
@@ -41,6 +41,7 @@ public:
     bool IIL() const { return m_includeInLayout; }
     eHorzAlign GetHAlign() const { return m_hAlign; }
     eVertAlign GetVAlign() const { return m_vAlign; }
+    void SetPosition(const vec2 &_tl);
 
     // mouse & state
 public:
@@ -48,9 +49,9 @@ public:
     virtual bool OnChar(unsigned int codepoint) { return false; }
     virtual bool OnMouse(const vec2 &_point, const eMouseEventType &_event, int _buttons, int _keys, int _wheel);
 
-    virtual bool IsEnable() const { return m_isEnabledMouseEvents; };
-    virtual void Enable() { m_isEnabledMouseEvents = true; };
-    virtual void Disable() { m_isEnabledMouseEvents = false; };
+    virtual bool IsEnable() const { return m_enabled; };
+    virtual void Enable() { m_enabled = true; };
+    virtual void Disable() { m_enabled = false; };
     virtual void Enable(eBool state);
     virtual bool IsChecked() const { return m_checked; };
     virtual void SetChecked(bool _v);
@@ -62,6 +63,8 @@ public:
 
     // tree
 public:
+    template <typename T>
+    std::shared_ptr<T> ME() { return std::dynamic_pointer_cast<T>(shared_from_this()); }
     virtual ContainerPtr GetParent() const { return m_parent.lock(); }
     virtual void SetParent(ContainerPtr _control);
     virtual void RemoveFromParent();
@@ -90,7 +93,7 @@ protected:
     // mouse & state
 protected:
     bool m_checked = false;
-    bool m_isEnabledMouseEvents = false;
+    bool m_enabled = false;
     eNodeState m_state = eNodeState::Normal;
 
 protected:

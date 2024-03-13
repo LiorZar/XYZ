@@ -6,17 +6,18 @@
 NAMESPACE_BEGIN(ui);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 class IWnd;
-class Node;
+class Control;
 class Container;
-using NodePtr = std::shared_ptr<Node>;
+using ControlPtr = std::shared_ptr<Control>;
 using ContainerPtr = std::shared_ptr<Container>;
 using WeakContainerPtr = std::weak_ptr<Container>;
+using ControlFn = std::function<void(ControlPtr)>;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-using CreateFn = std::function<NodePtr(IWnd *, ContainerPtr, const Xml::Node &)>;
-using NodeFactory = Factory<NodePtr, CreateFn>;
+using CreateFn = std::function<ControlPtr(IWnd *, ContainerPtr, const Xml::Node &)>;
+using NodeFactory = Factory<CreateFn>;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 template <typename T>
-NodePtr CreateNode(IWnd *wnd, ContainerPtr parent, const Xml::Node &data)
+ControlPtr CreateNode(IWnd *wnd, ContainerPtr parent, const Xml::Node &data)
 {
     auto node = std::make_shared<T>(wnd, parent);
     if (nullptr == node)
@@ -47,8 +48,16 @@ void RegisterNode(const std::vector<std::string> &names)
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+ControlPtr CreateControl(IWnd *wnd, ContainerPtr parent, const Xml::Node &data);
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 class IWnd
 {
+public:
+    IWnd() = default;
+    virtual ~IWnd() = default;
+
+public:
+    virtual Xml::NodePtr GetLibraryNode(Xml::NodePtr node) const;
 };
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(ui);

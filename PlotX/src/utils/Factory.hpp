@@ -2,7 +2,7 @@
 #ifndef __FACTORY_H__
 #define __FACTORY_H__
 
-template <typename T, typename FN>
+template <typename FN>
 class Factory
 {
 private:
@@ -23,15 +23,15 @@ public:
         Get().m_map[name] = fn;
     }
 
-    static T Create(const std::string &name)
+    static FN &Create(const std::string &name)
     {
         auto &mp = Get().m_map;
         auto it = mp.find(name);
         if (it != mp.end())
-        {
-            return it->second();
-        }
-        return nullptr;
+            return it->second;
+
+        static FN s_fn = nullptr;
+        return s_fn;
     }
 
 private:

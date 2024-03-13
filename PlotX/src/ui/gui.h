@@ -111,6 +111,9 @@ struct rectangle : public vec4
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 static inline bool IsBitOn(int _bits, int _value) { return 0 != (_bits & _value); }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+float CalcChildXPosition(const rectangle &_container, const rectangle &_child, eHorzAlign _align, const rectangle &_padding, float _offset);
+float CalcChildYPosition(const rectangle &_container, const rectangle &_child, eVertAlign _align, const rectangle &_padding, float _offset);
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(ui);
 
 #endif // __GUI_H__

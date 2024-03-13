@@ -1,14 +1,18 @@
-#include "Node.h"
+#include "Control.h"
 #include "Container.h"
 
 NAMESPACE_BEGIN(ui);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-Node::Node(IWnd *wnd, ContainerPtr parent) : m_wnd(wnd), m_parent(parent)
+Control::Control(IWnd *wnd, ContainerPtr parent) : m_wnd(wnd), m_parent(parent)
 {
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::Parse(const Xml::Node &data)
+bool Control::Parse(const Xml::Node &data)
 {
+    auto parent = m_parent.lock();
+    if (nullptr != parent)
+        parent->AddChild(shared_from_this());
+
     m_name = data.attr("name", "");
     m_hAlign = ToHorzAlign(data.attr("horz", "center"));
     m_vAlign = ToVertAlign(data.attr("vert", "center"));
@@ -19,36 +23,36 @@ bool Node::Parse(const Xml::Node &data)
     m_visibleDraw = data.Get("visibleDraw", true);
     m_visibleBorder = data.Get("visibleBorder", false);
     m_includeInLayout = data.Get("iil", true);
-    m_isEnabledMouseEvents = data.Get("mouseEnabled", true);
+    m_enabled = data.Get("enable", true);
 
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::PostInit()
+bool Control::PostInit()
 {
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::Update(float ts)
+bool Control::Update(float ts)
 {
     RefreshSize();
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::Draw(float ts) const
+bool Control::Draw(float ts) const
 {
     return IsVisible();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::DrawBorder(float ts) const
+bool Control::DrawBorder(float ts) const
 {
-    if (false == IsVisible() || false == m_visibleBorder)
+    if (false == m_visibleBorder)
         return false;
 
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::RefreshSize(bool _withMargin)
+void Control::RefreshSize()
 {
     auto prect = GetParentRectangle();
     auto size = prect.Size();
@@ -58,11 +62,11 @@ void Node::RefreshSize(bool _withMargin)
     m_rectPX.w = m_rect.w * size.y - m_padding.w;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::RefreshRectangles()
+void Control::RefreshRectangles()
 {
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-rectangle Node::GetParentRectangle() const
+rectangle Control::GetParentRectangle() const
 {
     auto parent = m_parent.lock();
     if (nullptr != parent)
@@ -70,7 +74,13 @@ rectangle Node::GetParentRectangle() const
     return parent->GetRectangle();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Node::OnMouse(const vec2 &_point, const eMouseEventType &_event, int _buttons, int _keys, int _wheel)
+void Control::SetPosition(const vec2 &_tl)
+{
+    m_rectPX.TL(_tl);
+    RefreshRectangles();
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool Control::OnMouse(const vec2 &_point, const eMouseEventType &_event, int _buttons, int _keys, int _wheel)
 {
     m_state = eNodeState::Normal;
     if (false == IsVisible())
@@ -90,7 +100,7 @@ bool Node::OnMouse(const vec2 &_point, const eMouseEventType &_event, int _butto
     return isInside;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::Enable(eBool state)
+void Control::Enable(eBool state)
 {
     if (eBool::False == state)
         Disable();
@@ -98,13 +108,13 @@ void Node::Enable(eBool state)
         Enable();
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::SetChecked(bool _v)
+void Control::SetChecked(bool _v)
 {
     m_checked = _v;
     m_state = eNodeState::Normal;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-std::string Node::GetStateString() const
+std::string Control::GetStateString() const
 {
     std::string state = "";
     switch (m_state)
@@ -127,7 +137,7 @@ std::string Node::GetStateString() const
     return state;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::SetParent(ContainerPtr _control)
+void Control::SetParent(ContainerPtr _control)
 {
     if (_control == GetParent())
         return;
@@ -135,7 +145,7 @@ void Node::SetParent(ContainerPtr _control)
     m_parent = _control;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Node::RemoveFromParent()
+void Control::RemoveFromParent()
 {
     auto parent = m_parent.lock();
     // if (nullptr != parent)
