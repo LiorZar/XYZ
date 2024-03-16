@@ -61,7 +61,6 @@ protected:
     eLayout m_layout = eLayout::None;
     std::vector<ControlPtr> m_children;
 };
-
 NAMESPACE_END(ui);
 
 #endif // ___CONTAINER_H___

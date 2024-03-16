@@ -13,9 +13,10 @@ public:
     static bool CheckGLError(const char *_file, const int _line);
 
 public:
-    static __cdecl void Log(const char *_file, const int _line, const char *format, ...);
-    static __cdecl void Error(const char *_file, const int _line, const char *format, ...);
-    static __cdecl void Warning(const char *_file, const int _line, const char *format, ...);
+    static void Log(const char *_file, const int _line, const char *format, ...);
+    static void Error(const char *_file, const int _line, const char *format, ...);
+    static void Warning(const char *_file, const int _line, const char *format, ...);
+    static void Lines(const char *sourceCode);
 };
 
 #endif // __TRACE_H__

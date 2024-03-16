@@ -2,8 +2,14 @@
 
 int main()
 {
-    ui::Wnd window(800, 600, "GLFW Hello World");
-    auto t = window.Run();
+    std::filesystem::path workDir = std::filesystem::current_path();
+    auto path = workDir / "../assets/";
+
+    auto window = std::make_shared<ui::Wnd>(path.string());
+    if (!window->Load("layout.xml"))
+        return -1;
+
+    auto t = window->Start();
     t.join();
 
     return 0;

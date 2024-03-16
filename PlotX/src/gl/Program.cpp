@@ -144,8 +144,20 @@ bool Program::create(const std::vector<std::string> &files, const std::vector<eS
         glShaderSource(shader, 1, &src, NULL);
         glCompileShader(shader);
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-        if (GL_TRUE == compiled)
+        if (GL_FALSE == compiled)
         {
+            int length = 0;
+            int retLength = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+            if (length > 1)
+            {
+                GLchar *buffer = new GLchar[length + 1];
+                glGetShaderInfoLog(shader, length, &retLength, buffer);
+                PrintError("Failed to compile shader: %s", buffer);
+                delete[] buffer;
+                Trace::Lines(src);
+                PrintGLError;
+            }
             Destroy();
             return false;
         }

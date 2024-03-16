@@ -3,6 +3,9 @@
 
 NAMESPACE_BEGIN(Xml);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+NodePtr FromFile(const std::string &path) { return Node::FromFile(path); }
+NodePtr FromString(const std::string &str) { return Node::FromString(str); }
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 NodePtr Node::FromString(const std::string &str)
 {
     NodePtr node = std::make_shared<Node>();

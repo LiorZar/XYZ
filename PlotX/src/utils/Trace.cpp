@@ -52,7 +52,7 @@ bool Trace::CheckGLError(const char *_file, const int _line)
     return rv;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__cdecl void Trace::Log(const char *_file, const int _line, const char *format, ...)
+void Trace::Log(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -64,7 +64,7 @@ __cdecl void Trace::Log(const char *_file, const int _line, const char *format, 
     va_end(args);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__cdecl void Trace::Error(const char *_file, const int _line, const char *format, ...)
+void Trace::Error(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -76,7 +76,7 @@ __cdecl void Trace::Error(const char *_file, const int _line, const char *format
     va_end(args);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__cdecl void Trace::Warning(const char *_file, const int _line, const char *format, ...)
+void Trace::Warning(const char *_file, const int _line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -86,5 +86,18 @@ __cdecl void Trace::Warning(const char *_file, const int _line, const char *form
     fprintf(stderr, "\n");
     printf(RESET); // Reset output color
     va_end(args);
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+void Trace::Lines(const char *sourceCode)
+{
+    int line = 1;
+    std::string item;
+    std::stringstream ss(sourceCode);
+
+    while (std::getline(ss, item, '\n'))
+    {
+        printf("%d: %s\n", line, item.c_str());
+        line++;
+    }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//

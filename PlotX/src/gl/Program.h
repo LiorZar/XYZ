@@ -55,6 +55,8 @@ private:
     std::map<eShaderType, SubroutineMap> m_subroutines;
     std::map<eShaderType, std::string> m_activeSubroutine;
 };
+using ProgramPtr = std::shared_ptr<Program>;
+
 NAMESPACE_END(gl);
 
 #endif // __PROGRAM_H__

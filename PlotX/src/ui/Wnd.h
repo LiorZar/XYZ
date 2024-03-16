@@ -1,42 +1,39 @@
 #ifndef __WND_H__
 #define __WND_H__
 
-#include "defines.h"
+#include "Container.h"
 
 NAMESPACE_BEGIN(ui);
 
-class Wnd
+class Wnd : public Container, public IWnd
 {
-private:
-    GLFWwindow *window;
-    int width, height;
-    std::string title;
-
 public:
-    Wnd(int width, int height, const char *title);
+    Wnd(const std::string &workDir);
     ~Wnd();
 
-    std::thread Run();
+public:
+    bool Load(const std::string &filename);
+    std::thread Start();
 
 protected:
-    void Loop();
+    void Run();
 
 protected:
+    virtual bool Update();
+    virtual bool PreScene();
     virtual bool DrawScene();
+    virtual bool PostScene();
     virtual void OnWindowClose();
     virtual void OnWindowSize(int width, int height);
     virtual void OnWindowRefresh();
     virtual void OnMouse(int button, int action, int mods);
     virtual void OnCursorPosition(double xpos, double ypos);
     virtual void OnScroll(double xoffset, double yoffset);
-    virtual void OnKey(int key, int scancode, int action, int mods);
-    virtual void OnChar(unsigned int codepoint);
+    virtual bool OnKey(int key, int scancode, int action, int mods) override;
+    virtual bool OnChar(unsigned int codepoint) override;
 
 private:
-    bool shouldClose() const;
-    void swapBuffers();
-    void pollEvents();
-    GLFWwindow *get() const;
+    GLFWwindow *window = nullptr;
 };
 NAMESPACE_END(ui);
 

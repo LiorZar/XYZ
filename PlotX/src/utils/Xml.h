@@ -10,6 +10,9 @@ class Node;
 using NodePtr = std::shared_ptr<Node>;
 using WeakNodePtr = std::weak_ptr<Node>;
 
+NodePtr FromFile(const std::string &path);
+NodePtr FromString(const std::string &str);
+
 class Node : public std::enable_shared_from_this<Node>
 {
 public:

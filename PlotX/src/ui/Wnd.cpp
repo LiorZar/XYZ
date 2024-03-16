@@ -2,28 +2,43 @@
 
 NAMESPACE_BEGIN(ui);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-Wnd::Wnd(int _width, int _height, const char *_title) : width(_width), height(_height), title(_title)
+Wnd::Wnd(const std::string &workDir) : Container(this, nullptr), IWnd(workDir)
 {
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 Wnd::~Wnd()
 {
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    if (nullptr != window)
+    {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+    }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-std::thread Wnd::Run()
+bool Wnd::Load(const std::string &filename)
+{
+    m_root = Xml::FromFile(m_workDir + filename);
+    if (nullptr == m_root)
+        return false;
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+std::thread Wnd::Start()
 {
     return std::thread([this]
-                       { Loop(); });
+                       { Run(); });
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Wnd::Loop()
+void Wnd::Run()
 {
+    if (nullptr == m_root)
+        throw std::runtime_error("No layout");
+
     if (!glfwInit())
         throw std::runtime_error("Failed to initialize GLFW");
 
-    window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
+    window = glfwCreateWindow(m_width, m_height, m_root->attr("title", "no title").c_str(), NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -31,6 +46,9 @@ void Wnd::Loop()
     }
     glfwMakeContextCurrent(window);
     glfwSetWindowUserPointer(window, this);
+
+    if (GLEW_OK != glewInit())
+        throw std::runtime_error("Failed to initialize GLEW");
 
     glfwSetMouseButtonCallback(
         window,
@@ -89,26 +107,54 @@ void Wnd::Loop()
             wnd->OnChar(codepoint);
         });
 
-    while (!shouldClose())
+    InitGL();
+    OnWindowSize(m_width, m_height);
+    while (!glfwWindowShouldClose(window))
     {
-        if (!DrawScene())
+        if (false == Update())
+            break;
+        if (false == PreScene() || false == DrawScene() || false == PostScene())
             break;
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool Wnd::Update()
+{
+    glfwPollEvents();
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool Wnd::PreScene()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool Wnd::DrawScene()
 {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBegin(GL_TRIANGLES);
+    static float L = 50.f, H = 500.f;
+    glBegin(GL_QUADS);
     glColor3f(1.0f, 0.0f, 0.0f);
-    glVertex2f(-0.5f, -0.5f);
+    glVertex2f(L, L);
+
     glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex2f(0.5f, -0.5f);
+    glVertex2f(H, L);
+
     glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex2f(0.0f, 0.5f);
+    glVertex2f(H, H);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    glVertex2f(L, H);
     glEnd();
-    swapBuffers();
-    pollEvents();
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool Wnd::PostScene()
+{
+    glfwSwapBuffers(window);
 
     return true;
 }
@@ -123,12 +169,14 @@ void Wnd::OnMouse(int button, int action, int mods)
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Wnd::OnKey(int key, int scancode, int action, int mods)
+bool Wnd::OnKey(int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
+
+    return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 void Wnd::OnWindowClose()
@@ -139,6 +187,14 @@ void Wnd::OnWindowClose()
 void Wnd::OnWindowSize(int width, int height)
 {
     std::cout << "Window size changed to " << width << "x" << height << std::endl;
+    m_width = width;
+    m_height = height;
+
+    glViewport(0, 0, m_width, m_height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, m_width, m_height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 void Wnd::OnWindowRefresh()
@@ -148,37 +204,19 @@ void Wnd::OnWindowRefresh()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 void Wnd::OnCursorPosition(double xpos, double ypos)
 {
-    std::cout << "Cursor position: (" << xpos << ", " << ypos << ")" << std::endl;
+    // std::cout << "Cursor position: (" << xpos << ", " << ypos << ")" << std::endl;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 void Wnd::OnScroll(double xoffset, double yoffset)
 {
-    std::cout << "Scroll offset: (" << xoffset << ", " << yoffset << ")" << std::endl;
+    // std::cout << "Scroll offset: (" << xoffset << ", " << yoffset << ")" << std::endl;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Wnd::OnChar(unsigned int codepoint)
+bool Wnd::OnChar(unsigned int codepoint)
 {
-    std::cout << "Character typed: " << static_cast<char>(codepoint) << std::endl;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool Wnd::shouldClose() const
-{
-    return glfwWindowShouldClose(window);
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Wnd::swapBuffers()
-{
-    glfwSwapBuffers(window);
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-void Wnd::pollEvents()
-{
-    glfwPollEvents();
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-GLFWwindow *Wnd::get() const
-{
-    return window;
+    // std::cout << "Character typed: " << static_cast<char>(codepoint) << std::endl;
+
+    return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(ui);
