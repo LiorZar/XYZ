@@ -28,7 +28,6 @@ public:
     bool SpidermanLoad(int channel);
     bool SpidermanSingleProcess(int configId);
     bool SpidermanSingleSplitProcess(int configId);
-    bool SpidermanBatchProcess();
     bool SpidermanBatchSplitProcess();
 
 private:
@@ -48,6 +47,11 @@ private:
 
     gbuffer<float2> decimate4[4], dechirp4[4], overlapSignal6[6];
     gbuffer<float4> stats6[6];
+
+    int m_signalSizes[4];
+    int m_downSamples[4] = {8, 4, 2, 1};
+    int m_windowSizes[6], m_hopSizes[6], m_numOfWindows[24], m_windowsOffset[24], m_totNumOfWindows[6] = {0, 0, 0, 0, 0, 0};
+    int m_SF[6] = {7, 8, 9, 10, 11, 12};
 
     // for testing
     gbuffer<float> filter, abs_out, abs_prev, fir_out;

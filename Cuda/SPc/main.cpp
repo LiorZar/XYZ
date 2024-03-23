@@ -10,7 +10,7 @@ int main()
     GPU::Set();
     SP sp;
 
-//#define SUPERMAN
+// #define SUPERMAN
 #ifdef SUPERMAN
     if (false == sp.SupermanInit())
         return 1;
@@ -31,17 +31,14 @@ int main()
             continue;
 
 #if VER == 1
-           for(int i = 1; i <= 24; ++i)
-               sp.SpidermanSingleProcess(i);
+        for (int i = 1; i <= 24; ++i)
+            sp.SpidermanSingleProcess(i);
 #elif VER == 2
-           for(int i = 1; i <= 24; ++i)
-               sp.SpidermanSingleSplitProcess(i);
+        for (int i = 1; i <= 24; ++i)
+            sp.SpidermanSingleSplitProcess(i);
 #elif VER == 3
-		if(false == sp.SpidermanBatchSplitProcess())
-			return 2;        
-#elif VER == 4
-		if(false == sp.SpidermanBatchProcess())
-			return 2;
+        if (false == sp.SpidermanBatchSplitProcess())
+            return 2;
 #endif
         std::cout << "channel " << channel << " success\n";
 #endif
