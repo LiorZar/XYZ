@@ -317,7 +317,7 @@ bool SP::SpidermanSingleProcess(int configId)
     std::cout << "DeChirp [" + config + "] Errors: " << errors << std::endl;
 
     errors = Compare(overlapSignal, 0, stft24[configIdx]);
-    std::cout << "STFT Chann [" + config + "] Errors: " << errors << std::endl;    
+    std::cout << "STFT Chann [" + config + "] Errors: " << errors << std::endl;
 
     return true;
 }
@@ -573,7 +573,7 @@ bool SP::SpidermanBatchProcess()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::SpidermanBatchSplitProcess()
 {
-    int k = 0, L = 30, LOOPS = 100;
+    int k = 0, L = 30, LOOPS = 1000;
     Elapse el("SpidermanBatchSplitProcess", 16);
 
 #pragma region one_time_initiation
@@ -652,8 +652,9 @@ bool SP::SpidermanBatchSplitProcess()
                 {
                     auto &fir = *pFir;
                     const int filterSize = (int)fir.size();
+                    const int sharedMemSize = DIV(filterSize, GRP) * GRP * sizeof(float);
 
-                    convolve1DDownPrev<<<DIV(signalSizes[i], GRP), GRP>>>(
+                    convolve1DDownPrev<<<DIV(signalSizes[i], GRP), GRP, sharedMemSize>>>(
                         channChunk.p(prev * CHUNK_SIZE),
                         channChunk.p(curr * CHUNK_SIZE),
                         *fir, *decimate4[i],
@@ -1017,6 +1018,16 @@ __global__ void convolve1DDown(const float2 *curr, const float *filter, float2 *
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void convolve1DDownPrev(const float2 *prev, const float2 *curr, const float *filter, float2 *output, const int size, const int downSize, const int filterSize, const int downSample, const int offset)
 {
+    extern __shared__ float shared_filter[];
+    int val_per_thread = DIV(filterSize, blockDim.x);
+    for (int i = 0; i < val_per_thread; ++i)
+    {
+        int tid = threadIdx.x + i * blockDim.x;
+        if (tid < filterSize)
+            shared_filter[tid] = filter[tid];
+    }
+    __syncthreads();
+
     int idx = getI();
     if (idx >= downSize)
         return;
@@ -1026,12 +1037,13 @@ __global__ void convolve1DDownPrev(const float2 *prev, const float2 *curr, const
     float2 res = {0.f, 0.f};
     for (int f = 0, s = I + 1 - filterSize; f < filterSize; ++f, ++s)
     {
+        const float filter_val = shared_filter[f];
         if (s < size)
         {
             if (s >= 0)
-                res += curr[s] * filter[f];
+                res += curr[s] * filter_val;
             else
-                res += prev[s + size] * filter[f];
+                res += prev[s + size] * filter_val;
         }
     }
     output[idx] = res;
