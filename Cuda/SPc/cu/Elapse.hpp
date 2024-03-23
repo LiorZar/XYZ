@@ -1,4 +1,5 @@
 #include "defines.h"
+#include <stack>
 
 NAMESPACE_BEGIN(cu);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -32,22 +33,23 @@ public:
         int index = 0;
         std::map<std::string, int> name2index;
         std::vector<Data> times;
-        int loopIndex = -1;
+        std::stack<int> loopIndexQ;
         float milliseconds = 0, microseconds = 0;
         for (auto i = 1U; i < stamps.size(); ++i)
         {
             if (std::string::npos != stamps[i].find("loop_s_"))
             {
-                loopIndex = i;
+                loopIndexQ.push(i);
                 continue;
             }
-            if (std::string::npos != stamps[i].find("loop_e_") && loopIndex != -1)
+            if (std::string::npos != stamps[i].find("loop_e_") && !loopIndexQ.empty())
             {
-                auto &start = events[loopIndex];
+                const int loopi = loopIndexQ.top();
+                loopIndexQ.pop();
+                auto &start = events[loopi];
                 auto &end = events[i];
                 cudaEventElapsedTime(&milliseconds, start, end);
-                microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[loopIndex]).count();
-                loopIndex = -1;
+                microseconds = (float)std::chrono::duration_cast<std::chrono::microseconds>(cpu[i] - cpu[loopi]).count();
             }
             else
             {

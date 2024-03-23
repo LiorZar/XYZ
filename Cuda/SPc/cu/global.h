@@ -52,8 +52,11 @@ template <typename T>
 void DownloadAt(const T *device, T *host, size_t offset) { checkError(cudaMemcpy(host, device + offset, sizeof(T), cudaMemcpyDeviceToHost)); }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 template <typename T>
-void Copy(T *dst, const T *src, size_t size) { checkError(cudaMemcpy(dst, src, sizeof(T) * size, cudaMemcpyDeviceToDevice)); }
+void Copy(T *dst, const T *src, size_t size) { checkError(cudaMemcpy(dst, src, sizeof(T)*size, cudaMemcpyDeviceToDevice)); }
 template <typename T>
 void CopyAt(T *dst, const T *src, size_t i, size_t j) { checkError(cudaMemcpy(dst + i, src + j, sizeof(T), cudaMemcpyDeviceToDevice)); }
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+template <typename T>
+void Zero(T *dst, size_t size) { checkError(cudaMemset(dst, 0, sizeof(T)*size)); }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);

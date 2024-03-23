@@ -3,19 +3,19 @@
 NAMESPACE_BEGIN(cu);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 const int FRESL = 1000000;
-const float IFRESEL = 1.f / float(FRESL);
+const float IFRESEL = 1.f/float(FRESL);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-const bool useHost = false;
+const bool useHost = false  ;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 cudaTextureDesc texDesc;
 cudaResourceDesc resDesc;
 cudaChannelFormatDesc chanDesc = cudaCreateChannelDesc<float>();
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-gbuffer<int> gl(10, useHost);
-gbuffer<u8> image(0, useHost);
-gbuffer<float> tmpBuffer(0, useHost);
-gbuffer<float> nrmBuffer(0, useHost);
-gbuffer<float> imageVals(0, useHost);
+gbuffer<int> gl(10,useHost);
+gbuffer<u8> image(0,useHost);
+gbuffer<float> tmpBuffer(0,useHost);
+gbuffer<float> nrmBuffer(0,useHost);
+gbuffer<float> imageVals(0,useHost);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __host__ __device__ inline float magnitude(float2 a)
 {
@@ -25,16 +25,16 @@ __host__ __device__ inline float magnitude(float2 a)
 __host__ __device__ inline void toColor(float v, u8 *rgb)
 {
     static const u8 RAINBOW[10][3] = {
-        {128, 0, 0},
-        {255, 0, 0},
-        {255, 128, 0},
-        {255, 255, 0},
-        {0, 255, 128},
-        {0, 255, 255},
-        {0, 128, 255},
-        {0, 0, 255},
-        {0, 0, 128},
-        {0, 0, 128}};
+            {128, 0, 0},
+            {255, 0, 0},
+            {255, 128, 0},
+            {255, 255, 0},
+            {0, 255, 128},
+            {0, 255, 255},
+            {0, 128, 255},
+            {0, 0, 255},
+            {0, 0, 128},
+            {0, 0, 128}};
 
     int i = int(v * 8);
     float f = (v * 8) - i;
@@ -43,82 +43,84 @@ __host__ __device__ inline void toColor(float v, u8 *rgb)
     rgb[2] = u8(Lerp(RAINBOW[i][2], RAINBOW[i + 1][2], f));
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-template <typename T>
-__global__ void zeroBuffer(T *buffer, int size)
+template<typename T>
+__global__ void zeroBuffer(T* buffer, int size)
 {
     int idx = getI();
-    if (idx < size)
+    if(idx < size)
         buffer[idx] = T(0);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void drawPolyline(float *output, const float *src, int width, int height, int lineWidth)
+__global__ void drawPolyline(float* output, const float* src, int width, int height, int lineWidth)
 {
     int x = getI();
     if (x >= width - 1)
         return;
 
-    float y0 = src[x] * height;
-    float y1 = src[x + 1] * height;
-    float count = abs(y1 - y0) / 0.25f;
-    for (float j = 0; j < count; ++j)
+    float y0 = src[x]*height;
+    float y1 = src[x + 1]*height;
+    float count = abs(y1 -y0)/0.25f;
+    for(float j = 0; j < count; ++j)
     {
-        int y = int(Lerp(y0, y1, j / (count - 1)));
+        int y = int(Lerp(y0, y1, j/(count-1)));
         for (int i = -lineWidth / 2; i <= lineWidth / 2; ++i)
         {
             int k = x + i;
-            int idx = y * width + k;
-            if (idx >= 0 && idx < width * height)
+            int idx = y*width + k;
+            if(idx >= 0 && idx < width*height)
                 output[idx] = 1.0;
+
+
         }
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void tex2rgba(u8 *rgba, cudaTextureObject_t tex, int width, int height)
+__global__ void tex2rgba(u8* rgba, cudaTextureObject_t tex, int width, int height)
 {
     int J = getI();
     int I = getJ();
-    if (I >= height || J >= width)
+    if(I >= height || J >= width)
         return;
 
-    const int idx = (I * width + J) * 4;
-    float fx = float(J) / float(width - 1);
-    float fy = float(I) / float(height - 1);
+    const int idx = (I*width + J)*4;
+    float fx = float(J)/float(width - 1);
+    float fy = float(I)/float(height - 1);
     float val = tex2D<float>(tex, fx, fy);
-    u8 v = u8(val * 255);
+    u8 v = u8(val*255);
     rgba[idx + 0] = v;
     rgba[idx + 1] = v;
     rgba[idx + 2] = v;
     rgba[idx + 3] = 255;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void tex2rainbowT(u8 *rgba, cudaTextureObject_t tex, int width, int height)
+__global__ void tex2rainbowT(u8* rgba, cudaTextureObject_t tex, int width, int height)
 {
     int J = getI();
     int I = getJ();
-    if (I >= height || J >= width)
+    if(I >= height || J >= width)
         return;
 
-    const int idx = (I * width + J) * 4;
-    float fx = float(J) / float(width - 1);
-    float fy = float(I) / float(height - 1);
+    const int idx = (I*width + J)*4;
+    float fx = float(J)/float(width - 1);
+    float fy = float(I)/float(height - 1);
     float val = tex2D<float>(tex, 1.f - fy, fx);
     toColor(val, rgba + idx);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void findBufferMinMax(const float *buffer, int size, int *gl)
+__global__ void findBufferMinMax(const float* buffer, int size, int* gl)
 {
     int idx = getI();
-    if (idx >= size)
+    if(idx >= size)
         return;
 
-    atomicMin(&gl[0], int(buffer[idx] * FRESL));
-    atomicMax(&gl[1], int(buffer[idx] * FRESL));
+    atomicMin(&gl[0], int(buffer[idx]*FRESL));
+    atomicMax(&gl[1], int(buffer[idx]*FRESL));
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void normalizeBuffer(float *output, const float *src, int size, float minVal, float maxVal)
+__global__ void normalizeBuffer(float* output, const float* src, int size, float minVal, float maxVal)
 {
     int idx = getI();
-    if (idx >= size)
+    if(idx >= size)
         return;
 
     float v = src[idx];
@@ -126,19 +128,19 @@ __global__ void normalizeBuffer(float *output, const float *src, int size, float
     output[idx] = v;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void complex2float(float *output, const float2 *src, int size, int type)
+__global__ void complex2float(float* output, const float2* src, int size, int type)
 {
     int idx = getI();
-    if (idx >= size)
+    if(idx >= size)
         return;
 
     float v = 0;
     float2 val = src[idx];
-    if (0 == type) // real
+    if(0 == type) // real
         v = val.x;
-    if (1 == type) // imag
+    if(1 == type) // imag
         v = val.y;
-    if (2 == type)
+    if(2 == type)
         v = magnitude(val);
     output[idx] = v;
 }
@@ -156,7 +158,7 @@ BMP::BMP()
     resDesc.resType = cudaResourceTypeArray;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-BMP *BMP::Get()
+BMP* BMP::Get()
 {
     static BMP instance;
     return &instance;
@@ -164,23 +166,24 @@ BMP *BMP::Get()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 BMP::~BMP()
 {
+
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool BMP::SignalReal2BMP(const std::string &filename, const gbuffer<float> &data, int width, int height, int line_width)
+bool BMP::SignalReal2BMP(const std::string &filename, const gbuffer<float>& data, int width, int height, int line_width)
 {
     Normalize(data, width);
-    imageVals.resize(width * height);
-    image.resize(width * height * 4);
+    imageVals.resize(width*height);
+    image.resize(width*height*4);
 
-    drawPolyline<<<DIV(width, BLOCK), BLOCK>>>(*imageVals, *nrmBuffer, width, height, line_width);
-    zeroBuffer<<<DIV((int)image.size(), BLOCK), BLOCK>>>(*image, (int)image.size());
+    drawPolyline<<<DIV(width,BLOCK), BLOCK>>>(*imageVals, *nrmBuffer, width,height, line_width);
+    zeroBuffer<<<DIV(image.size(), BLOCK), BLOCK>>>(*image, (int)image.size());
 
-    cudaArray *d_imageVals;
+    cudaArray* d_imageVals;
     cudaMallocArray(&d_imageVals, &chanDesc, width, height);
-    cudaMemcpy2DToArray(d_imageVals, 0, 0, *imageVals, width * sizeof(float), width * sizeof(float), height, cudaMemcpyDeviceToDevice);
+    cudaMemcpy2DToArray(d_imageVals, 0, 0, *imageVals, width*sizeof(float), width*sizeof(float), height, cudaMemcpyDeviceToDevice);
     resDesc.res.array.array = d_imageVals;
 
-    dim3 grid(DIV(width, 16), DIV(height, 16)), block(16, 16);
+    dim3 grid(DIV(width, 16), DIV(height, 16)), block(16,16);
     cudaTextureObject_t tex;
     cudaCreateTextureObject(&tex, &resDesc, &texDesc, nullptr);
     tex2rgba<<<grid, block>>>(*image, tex, width, height);
@@ -191,28 +194,28 @@ bool BMP::SignalReal2BMP(const std::string &filename, const gbuffer<float> &data
     return RGBA2BMP(filename, image.h(), width, height);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool BMP::SignalComplex2BMP(const std::string &filename, const gbuffer<float2> &cdata, int width, int height, eType type, int line_width)
+bool BMP::SignalComplex2BMP(const std::string &filename, const gbuffer<float2>& cdata, int width, int height, eType type, int line_width)
 {
     tmpBuffer.resize(width);
     complex2float<<<GRID(width), BLOCK>>>(*tmpBuffer, *cdata, width, (int)type);
     return SignalReal2BMP(filename, tmpBuffer, width, height, line_width);
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool BMP::STFTComplex2BMP(const std::string &filename, const gbuffer<float2> &cdata, int dataWidth, int dataHeight, int bmpWidth, int bmpHeight, eType type)
+bool BMP::STFTComplex2BMP(const std::string &filename, const gbuffer<float2>& cdata, int dataWidth, int dataHeight, int bmpWidth, int bmpHeight, eType type)
 {
-    const int dataSize = dataWidth * dataHeight;
+    const int dataSize = dataWidth*dataHeight;
     tmpBuffer.resize(dataSize);
     complex2float<<<GRID(dataSize), BLOCK>>>(*tmpBuffer, *cdata, dataSize, (int)type);
     Normalize(tmpBuffer, dataSize);
 
-    image.resize(bmpWidth * bmpHeight * 4);
+    image.resize(bmpWidth*bmpHeight*4);
 
-    cudaArray *d_imageVals;
+    cudaArray* d_imageVals;
     cudaMallocArray(&d_imageVals, &chanDesc, dataWidth, dataHeight);
-    cudaMemcpy2DToArray(d_imageVals, 0, 0, *nrmBuffer, dataWidth * sizeof(float), dataWidth * sizeof(float), dataHeight, cudaMemcpyDeviceToDevice);
+    cudaMemcpy2DToArray(d_imageVals, 0, 0, *nrmBuffer, dataWidth*sizeof(float), dataWidth*sizeof(float), dataHeight, cudaMemcpyDeviceToDevice);
     resDesc.res.array.array = d_imageVals;
 
-    dim3 grid(DIV(bmpWidth, 16), DIV(bmpHeight, 16)), block(16, 16);
+    dim3 grid(DIV(bmpWidth, 16), DIV(bmpHeight, 16)), block(16,16);
     cudaTextureObject_t tex;
     cudaCreateTextureObject(&tex, &resDesc, &texDesc, nullptr);
     tex2rainbowT<<<grid, block>>>(*image, tex, bmpWidth, bmpHeight);
@@ -231,9 +234,9 @@ bool BMP::Normalize(const gbuffer<float> &data, int width)
     findBufferMinMax<<<GRID(width), BLOCK>>>(*data, width, *gl);
     gl.RefreshDown();
 
-    float minVal = gl[0] * IFRESEL, maxVal = gl[1] * IFRESEL;
+    float minVal = gl[0]*IFRESEL, maxVal = gl[1]*IFRESEL;
     float dVal = maxVal - minVal;
-    if (maxVal - minVal < 0.00001f) // two normalized
+    if(maxVal - minVal < 0.00001f) // two normalized
     {
         maxVal += 0.5f;
         minVal -= 0.5f;

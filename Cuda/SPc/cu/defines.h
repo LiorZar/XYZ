@@ -61,9 +61,10 @@ typedef double f64;
 //--------------------------------------------------------------------------------------------------------------------//
 const u32 BLOCK = 256;
 //--------------------------------------------------------------------------------------------------------------------//
-__host__ __device__ __forceinline__ u32 DIV(u32 count, u32 block)
+template<typename T, typename G>
+__host__ __device__ __forceinline__ u32 DIV(T count, G block)
 {
-    return (count + block - 1) / block;
+    return (u32(count + block) - 1) / (u32)block;
 }
 //--------------------------------------------------------------------------------------------------------------------//
 __host__ __device__ __forceinline__ u32 GRID(u32 count, u32 block = BLOCK)

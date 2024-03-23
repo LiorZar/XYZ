@@ -44,8 +44,8 @@ public:
     T *operator*() { return data; }
     const T *operator*() const { return data; }
 
-    T *h() { return hata; }
-    const T *h() const { return hata; }
+    T *h(int offset = 0) { return hata + offset; }
+    const T *h(int offset = 0) const { return hata + offset; }
     std::vector<T> &cpu() { return temp; }
 
     size_t size() const { return m_size; }
@@ -72,6 +72,7 @@ public:
     }
     void WriteToFile(const std::string &path)
     {
+        RefreshDown();
         std::ofstream file(path, std::ios::binary);
         file.write(reinterpret_cast<const char *>(hata), sizeof(T) * m_size);
     }
@@ -220,11 +221,13 @@ public:
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 static bool CMP(const float &a, const float &b) { return std::abs(a - b) < 1e-6; }
-static bool CMP(const float2 &a, const float2 &b)
+static bool CMP(const float2 &a, const float2 &b, float *err = nullptr)
 {
     auto d = a - b;
     d = d * d;
     float f = std::sqrt(d.x + d.y);
+    if (err != nullptr)
+        *err = f;
     return f < 1e-5;
 }
 template <typename T>
@@ -232,15 +235,15 @@ static int Compare(const gbuffer<T> &a, const gbuffer<T> &b, size_t size = 0)
 {
     size_t asize = a.m_size;
     size_t bsize = b.m_size;
-    if(size > 0)
+    if (size > 0)
     {
-        if(asize < size)
+        if (asize < size)
             return -int(asize);
-        if(bsize < size)
+        if (bsize < size)
             return -int(bsize);
         asize = bsize = size;
     }
-    
+
     if (asize != bsize)
         return int(asize - bsize);
 
@@ -256,6 +259,28 @@ static int Compare(const gbuffer<T> &a, const gbuffer<T> &b, size_t size = 0)
             ++correct;
     }
     return errors;
+}
+template <typename T>
+static int Compare(const T *a, size_t aoffset, const T *b, size_t boffset, size_t size = 0)
+{
+    int errors = 0, correct = 0;
+    float err = 0;
+    for (size_t i = 0; i < size; i++)
+    {
+        if (false == CMP(a[i + aoffset], b[i + boffset], &err))
+            ++errors;
+        else
+            ++correct;
+    }
+    return errors;
+}
+template <typename T>
+static int Compare(const gbuffer<T> &a, size_t aoffset, const std::vector<T> &b, size_t boffset = 0, size_t size = 0)
+{
+    a.RefreshDown();
+    if (size <= 0)
+        size = b.size();
+    return Compare(a.h(), aoffset, b.data(), boffset, size);
 }
 template <typename T>
 static int FindFirstMatch(const gbuffer<T> &a, const gbuffer<T> &b)

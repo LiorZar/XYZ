@@ -6,9 +6,11 @@
 NAMESPACE_BEGIN(cu);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-const int FRESL = 1000000;
+const int CHUNK_SIZE = 1 << 18;
 const bool useHost = false;
+const float OVERLAP = 0.75f;
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+__host__ __device__ float2 CW(double t);
 __global__ void FillDFTWeights(float2 *weights, int N);
 __global__ void MultiDFT(float2 *output, const float2 *data, const float2 *weights, int size, int N);
 __global__ void MultiDFTIL(float2 *output, const float2 *data, const float2 *weights, const int cols, const int rows, const int new_row_stride, const int offset);
@@ -17,34 +19,31 @@ __global__ void Transpose1DC(const float *input, float2 *output, const int cols,
 __global__ void Transpose2D(const float2 *input, float2 *output, const int cols, const int rows, const int new_row_stride, const int offset);
 __global__ void Transpose2D_copy_Prev(const float2 *prev, float2 *output, const int cols, const int rows, const int prevRows, const int new_row_stride);
 __global__ void InverseTranspose2D(const float2 *input, float2 *output, const int cols, const int rows, const int new_row_stride, const int offset);
-__global__ void DeChirp(const float2 *input, float2 *output, size_t size, double MFS);
-__global__ void CreateSignal(float2 *output, const int size);
+__global__ void DeChirp(const float2 *input, float2 *output, size_t size, double MFS, int chirpOffset, int chirpSize);
 __global__ void convolve2DFreq(float2 *curr, const float2 *filter, int size);
 __global__ void normalizeSignal(float2 *curr, int size, int N);
 __global__ void AbsMag(const float2 *curr, float *out, int size);
 __global__ void convolve1DDown(const float2 *curr, const float *filter, float2 *output, const int size, const int downSize, const int filterSize, const int downSample, const int offset);
+__global__ void convolve1DDownPrev(const float2 *prev, const float2 *curr, const float *filter, float2 *output, const int size, const int downSize, const int filterSize, const int downSample, const int offset);
 __global__ void convolve1DFir(const float *prev, const float *curr, float *output, const int sample_per_channel, const int numChannels);
 __global__ void convolve1DFirIL(const float *prev, const float *curr, float *output, const int sample_per_channel, const int numChannels);
 __global__ void generateOnesWindow(float *window, int length);
 __global__ void generateHanningWindow(float *window, int length);
 __global__ void generateHammingWindow(float *window, int length);
 __global__ void applyOverlapSignal(const float2 *inputSignal, float2 *outputSignal, int signalSize, int windowSize, int hopSize, int numOfWindows);
+__global__ void applyOverlapSignalPrev(const float2 *prev, const float2 *curr, float2 *outputSignal, int signalSize, int windowSize, int hopSize, int numOfWindows);
 __global__ void applyWindowAndSegment(const float2 *inputSignal, const float *window, float2 *outputSignal, int signalLength, int windowLength, int hopSize, int numSegments);
+__global__ void freqShift(float2 *buffer, int size, double invFS);
 __global__ void fftShift(float2 *buffer, int windowSize, int numOfWindows);
-__global__ void MinMaxAtomic(const float2 *input, int *output, int size);
-__global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size);
-__global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size);
-__global__ void MinMaxAtomicBlockChunk(const float2 *input, int *output, int chunk, int size);
-__global__ void MinMaxReduction(const float2 *input, int *output, int size);
+__global__ void calcStatsPerWindow(float4 *output, const float2 *input, int windowSize, int numOfWindows);
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 SP::SP() : globals(2048, useHost),
            firFilter(0, useHost), currAbs(num_of_samples, useHost), currFir(num_of_samples, useHost),
            filterFFT(num_of_samples_padd, useHost), weightsDFT(num_of_channels * num_of_channels, useHost),
-           prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost), signal1(test_size, useHost), signal1out(num_of_windows * window_size, useHost), signal1outT(num_of_windows * window_size, useHost),
-           hanningWindow(window_size, useHost), hammingWindow(window_size, useHost), onesWindow(window_size, useHost),
+           prevT(num_of_samples_padd, useHost), currT(num_of_samples_padd, useHost),
            fir2(0, useHost), fir4(0, useHost), fir8(0, useHost),
 
-           dechirp(0, useHost), signalDown(0, useHost), overlapSignal(0, useHost),
+           signalDown(0, useHost), overlapSignal(0, useHost),
 
            filter(0, useHost), abs_out(num_of_samples, useHost), abs_prev(0, useHost), fir_out(0, useHost),
            fft_out(0, useHost),
@@ -55,31 +54,29 @@ SP::SP() : globals(2048, useHost),
 #else
     workDir = "/tmp/data/";
 #endif
+
+    supDir = workDir + "superman/";
+    spdDir = workDir + "spiderman/";
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 // #define NON_TRANSPOSE
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::Init()
+bool SP::SupermanInit()
 {
     BMP::Get();
 
     const float F7 = 1.f / 7.f;
     firFilter.resize(7, F7);
 
-    //    filter.ReadFromFile("../../data/4/filter.bin");
-    filter.ReadFromFile(workDir + "FILTER.32fc");
-    curr.ReadFromFile(workDir + "Chann_current2.32fc");
-    curr.ReadFromFile(workDir + "Chann_current2.32fc");
-    prev.ReadFromFile(workDir + "Chann_prev2.32fc");
-    result.ReadFromFile(workDir + "Chann_out2.32fc", false);
-    fft_out.ReadFromFile(workDir + "FFT_OUT2.32fc");
-    abs_prev.ReadFromFile(workDir + "FIR_PREV2.32fc"); //
-    abs_out.ReadFromFile(workDir + "ABS_OUT2.32fc");
-    fir_out.ReadFromFile(workDir + "FIR_OUT2.32fc");
-    chann1.ReadFromFile(workDir + "Bluritsamples/Test0_input.32fc");
-    fir2.ReadFromFile(workDir + "Bluritsamples/fir2.32f");
-    fir4.ReadFromFile(workDir + "Bluritsamples/fir4.32f");
-    fir8.ReadFromFile(workDir + "Bluritsamples/fir8.32f");
+    filter.ReadFromFile(supDir + "FILTER.32fc");
+    curr.ReadFromFile(supDir + "Chann_current2.32fc");
+    curr.ReadFromFile(supDir + "Chann_current2.32fc");
+    prev.ReadFromFile(supDir + "Chann_prev2.32fc");
+    result.ReadFromFile(supDir + "Chann_out2.32fc", false);
+    fft_out.ReadFromFile(supDir + "FFT_OUT2.32fc");
+    abs_prev.ReadFromFile(supDir + "FIR_PREV2.32fc"); //
+    abs_out.ReadFromFile(supDir + "ABS_OUT2.32fc");
+    fir_out.ReadFromFile(supDir + "FIR_OUT2.32fc");
 
     if (filter.size() < num_of_filters || curr.size() != num_of_samples || prev.size() != num_of_samples || result.size() != num_of_samples)
     {
@@ -87,10 +84,7 @@ bool SP::Init()
         return false;
     }
 
-    // BMP::SignalReal2BMP(workDir + "FILTER.bmp", filter, (int)filter.size(), 512, 1);
-
     Elapse el("Filter FFT", 16);
-
     Transpose1DC<<<DIV(num_of_filters, GRP), GRP>>>(*filter, *filterFFT, num_of_channels, filter_size, samples_per_channel_padd, 1);
     el.Stamp("Transpose Filter");
 
@@ -99,26 +93,17 @@ bool SP::Init()
     FillDFTWeights<<<DIV(num_of_channels * num_of_channels, GRP), GRP>>>(*weightsDFT, num_of_channels);
     el.Stamp("Weights DFT");
 
-    generateOnesWindow<<<DIV(window_size, GRP), GRP>>>(*onesWindow, window_size);
-    generateHanningWindow<<<DIV(window_size, GRP), GRP>>>(*hanningWindow, window_size);
-    generateHammingWindow<<<DIV(window_size, GRP), GRP>>>(*hammingWindow, window_size);
-    el.Stamp("generate windows");
-
-    chann1Padd.resize(FFT::NextPow2((int)chann1.size()));
-    Copy(*chann1Padd, *chann1, chann1.size());
-    chann1FFT.resize(chann1Padd.size());
-
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::XYZProcess()
+bool SP::SupermanProcess()
 {
     int errors = 0, k = 0, L = 30;
-    Elapse el("XYZProcess", 16);
+    Elapse el("SupermanProcess", 16);
 
     for (k = 0; k < 1000; ++k)
     {
-        el.Loop("test", true, k < L);
+        el.Loop("anis", true, k < L);
         Transpose2D<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *currT, num_of_channels, samples_per_channel, samples_per_channel_padd, filter_size);
         Transpose2D_copy_Prev<<<DIV(filter_size * samples_per_channel, GRP), GRP>>>(*prev, *currT, num_of_channels, samples_per_channel, filter_size, samples_per_channel_padd);
         el.Stamp("Transpose Signal", k < L);
@@ -139,14 +124,16 @@ bool SP::XYZProcess()
 #else
         InverseTranspose2D<<<DIV(num_of_samples, GRP), GRP>>>(*currT, *out, samples_per_channel, num_of_channels, samples_per_channel_padd, filter_size);
         el.Stamp("Inverse Transpose", k < L);
+        //        currT.swap(out);
+        //        MultiDFT<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currT, *weightsDFT, samples_per_channel, num_of_channels);
         FFT::Dispatch(true, out, samples_per_channel);
-        el.Stamp("Out FFT", k < L);
+        el.Stamp("Multi FFT", k < L);
         AbsMag<<<DIV(num_of_samples, GRP), GRP>>>(*out, *currAbs, num_of_samples);
         el.Stamp("AbsMag", k < L);
         convolve1DFirIL<<<DIV(num_of_samples, GRP), GRP>>>(*abs_prev, *currAbs, *currFir, samples_per_channel, num_of_channels);
         el.Stamp("FirIL", k < L);
 #endif
-        el.Loop("test", false, k < L);
+        el.Loop("anis", false, k < L);
     }
 #ifdef NON_TRANSPOSE
     Transpose1D<<<DIV(num_of_samples, GRP), GRP>>>(*currAbs, *currFir, samples_per_channel, num_of_channels, num_of_channels);
@@ -168,386 +155,664 @@ __host__ __device__ float2 ChirpK(int k, double InvSF)
 
     double p = -2.0 * M_PI * t;
     f = {(float)cos(p), (float)sin(p)};
+
     return f;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::ZYXLoadFile(int channelId, int &downSample, int &signalSize, int &windowSize, int &hopSize, int &numOfWindows, int &SF, bool saveImage)
+bool SP::SpidermanInit()
 {
-    const int CHANNEL_NUM = channelId;
-    SF = ((CHANNEL_NUM - 1) / 4) + 7;
-    const int SYMBOL = 1 << SF;
-
-    downSample = 1 << (3 - (CHANNEL_NUM - 1) % 4);
-
-    std::string channel = std::to_string(CHANNEL_NUM);
-
-    bool rv = true;
-    rv = rv && decimate1.ReadFromFile(workDir + "Bluritsamples/Test0_decimated_num_" + channel + ".32fc");
-    rv = rv && chirp1.ReadFromFile(workDir + "Bluritsamples/chirp" + std::to_string(downSample) + ".32fc");
-    rv = rv && dechirp1.ReadFromFile(workDir + "Bluritsamples/Test0_dechirp_num_" + channel + ".32fc");
-    if (false == rv)
-        return false;
-
-    const float overlap = 0.75f;
-
-    windowSize = SYMBOL;
-    signalSize = (int)dechirp1.size();
-    int signalPaddSize = DIV(signalSize, windowSize) * windowSize;
-    int overlapSize = (int)(windowSize * overlap);
-    hopSize = windowSize - overlapSize;
-    numOfWindows = signalPaddSize / hopSize;
-
-    rv = rv && stft1.ReadFromFile(workDir + "Bluritsamples/Test0_" + std::to_string(SYMBOL) + "x" + std::to_string(numOfWindows) + "_stft_blocks_num_" + channel + ".32fc");
-    if (false == rv)
-        return false;
-
-    if (false == saveImage)
-        return true;
-
-    BMP::SignalComplex2BMP(workDir + "x_inp" + channel + ".bmp", chann1, 20000, 128, eType::Real);
-    BMP::SignalComplex2BMP(workDir + "x_dec" + channel + ".bmp", decimate1, 20000, 128, eType::Real);
-    BMP::SignalComplex2BMP(workDir + "x_crp" + channel + ".bmp", chirp1, 20000, 128, eType::Real);
-    BMP::SignalComplex2BMP(workDir + "x_dch" + channel + ".bmp", dechirp1, 20000, 128, eType::Real);
-    BMP::STFTComplex2BMP(workDir + "x_stft" + channel + ".bmp", stft1, windowSize, numOfWindows, numOfWindows, windowSize, eType::Magnitute);
-
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::SingleZYXProcess(int channelId)
+bool SP::SpidermanLoad(int channel)
 {
-    auto channel = std::to_string(channelId);
-    int downSample, windowSize, signalSize, hopSize, numOfWindows, SF;
-    if (false == ZYXLoadFile(channelId, downSample, signalSize, windowSize, hopSize, numOfWindows, SF, false))
-    {
-        std::cout << "Failed to load files\n";
-        return false;
-    }
-    double MFS = 1.0 / (1 << SF);
-    int k = 0, L = 30, LOOPS = 100;
-    Elapse el("Single ZYX Channel", 16);
+    //    raw.ReadFromFile(workDir + "t/raw.32fc");
+    //    Utils::FromFile(workDir + "t/ddc.32fc", ddc1);
+    //    /**
+    //     * if (fd > fs /2)
+    //     *      fd = - (fd % (fs / 2))
+    //     */
+    //    double fs = 8.5e6;
+    //    double fd = 6.5e6;
+    //    double invFsd = (1.0 / fs) * fd;
+    //
+    ////    0.0117747 - 0.0179254i
+    ////    0.0119519 - 0.0179124i
+    //    float err;
+    //    int errors= 0;
+    //    for(int idx = 0; idx < 10; ++idx){
+    //        double ts = double(idx) * (fd / fs);
+    //        float2 s = raw[idx], b = ddc1[idx];
+    //        double p = -2.0 * M_PI * ts;
+    //        double2 e = {cos(p), sin(p)};
+    ////        float2 e = CW(ts);
+    //
+    //        double2 ad = cuCmul(e, {s.x, s.y});
+    //        float2 a = {ad.x, ad.y};
+    //        if(false == CMP(a,b,&err))
+    //            ++errors;
+    //    }
+    //    freqShift<<<DIV(raw.size(), GRP), GRP>>>(*raw, raw.size(), invFsd);
+    //    sync();
 
-    const int downSize = DIV((int)chann1.size(), downSample);
-    signalDown.resize(downSize);
-    dechirp.resize(downSize);
+    //    auto err = Compare(raw, 0, ddc1);
+    //    std::cout << "ERRRR = " << err << std::endl;
+
+    fir2.ReadFromFile(spdDir + "fir2.32f");
+    fir4.ReadFromFile(spdDir + "fir4.32f");
+    fir8.ReadFromFile(spdDir + "fir8.32f");
+    if (fir2.size() <= 0 || fir4.size() <= 0 || fir8.size() <= 0)
+        return false;
+
+    std::string chanDir = spdDir + std::to_string(channel) + "/";
+    chann1.ReadFromFile(chanDir + "input.32fc");
+    if (chann1.size() <= 0)
+        return false;
+
+    for (int i = 0; i < 24; ++i)
+    {
+        const int configId = i + 1;
+        std::string config = std::to_string(configId);
+
+        bool rv = true;
+        rv = rv && Utils::FromFile(chanDir + "decimate" + config + ".32fc", decimate24[i]);
+        rv = rv && Utils::FromFile(chanDir + "dechirp" + config + ".32fc", dechirp24[i]);
+        rv = rv && Utils::FromFile(chanDir + "stft" + config + ".32fc", stft24[i]);
+
+        if (false == rv)
+            return false;
+    }
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+gbuffer<float> *SP::GetFirFilter(const int downSample)
+{
+    gbuffer<float> *pFir = nullptr;
+    switch (downSample)
+    {
+    case 2:
+        pFir = &fir2;
+        break;
+    case 4:
+        pFir = &fir4;
+        break;
+    case 8:
+        pFir = &fir8;
+        break;
+    }
+    return pFir;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::SpidermanSingleProcess(int configId)
+{
+    auto config = std::to_string(configId);
+    const int configIdx = configId - 1;
+    const int SF = (configIdx / 4) + 7;
+    const int windowSize = 1 << SF;
+    const int overlapSize = (int)(windowSize * OVERLAP);
+    const int hopSize = windowSize - overlapSize;
+    double MFS = 1.0 / (1 << SF);
+    const int downSample = 1 << (3 - configIdx % 4);
+
+    const int signalSize = DIV(chann1.size(), downSample);
+    const int numOfWindows = DIV(signalSize, windowSize) * windowSize / hopSize;
+
+    int k = 0, L = 30, LOOPS = 1;
+    Elapse el("Single ZYX config", 16);
+
+    signalDown.resize(signalSize);
+    dechirp.resize(signalSize);
     overlapSignal.resize(numOfWindows * windowSize);
+    //    stats.m_host = true;
+    stats.resize(numOfWindows);
     int errors = 0;
 
     for (k = 0; k < LOOPS; ++k)
     {
-        el.Loop("SingleZYXProcess", true, k < L);
-        gbuffer<float> *pFir = nullptr;
-        switch (downSample)
-        {
-        case 2:
-            pFir = &fir2;
-            break;
-        case 4:
-            pFir = &fir4;
-            break;
-        case 8:
-            pFir = &fir8;
-            break;
-        }
+        el.Loop("Single Spiderman", true, k < L);
+        gbuffer<float> *pFir = GetFirFilter(downSample);
         if (pFir)
         {
             auto &fir = *pFir;
             const int filterSize = (int)fir.size();
-            const int offset = (filterSize / 2) / downSample;
 
-            convolve1DDown<<<DIV(downSize, GRP), GRP>>>(*chann1, *fir, *signalDown, (int)chann1.size(), downSize, filterSize, downSample, offset);
+            convolve1DDown<<<DIV(signalSize, GRP), GRP>>>(
+                *chann1,
+                *fir,
+                *signalDown,
+                (int)chann1.size() - filterSize,
+                signalSize,
+                filterSize,
+                downSample,
+                0);
         }
         else
         {
-            Copy(*signalDown, *chann1, downSize);
+            Copy(*signalDown, *chann1, signalSize);
         }
         el.Stamp("Decimate", k < L);
 
-        DeChirp<<<DIV((int)decimate1.size(), GRP), GRP>>>(*signalDown, *dechirp, dechirp.size(), MFS);
+        const int dsize = (int)dechirp.size();
+        DeChirp<<<DIV(dsize, GRP), GRP>>>(*signalDown, *dechirp, dsize, MFS, 0, windowSize << 1);
         el.Stamp("DeChirp", k < L);
 
         dim3 grid(DIV(windowSize, GRP), numOfWindows);
-        applyOverlapSignal<<<grid, GRP>>>(*dechirp, *overlapSignal, signalSize, windowSize, hopSize, numOfWindows);
+        applyOverlapSignal<<<grid, GRP>>>(*dechirp, *overlapSignal, (int)dechirp.size(), windowSize, hopSize, numOfWindows);
         el.Stamp("Apply Window");
 
         FFT::Dispatch(true, overlapSignal, numOfWindows);
         fftShift<<<grid, GRP>>>(*overlapSignal, windowSize, numOfWindows);
         el.Stamp("STFT");
 
-        el.Loop("SingleZYXProcess", false, k < L);
+        calcStatsPerWindow<<<DIV(numOfWindows, GRP), GRP>>>(*stats, *overlapSignal, windowSize, numOfWindows);
+        el.Stamp("Stats");
+
+        el.Loop("Single Spiderman", false, k < L);
     }
     sync();
-    errors = Compare(decimate1, signalDown, decimate1.size());
-    std::cout << "Decimate Chann [" + channel + "] Errors: " << errors << std::endl;
+    errors = Compare(signalDown, 0, decimate24[configIdx]);
+    std::cout << "Decimate Chann [" + config + "] Errors: " << errors << std::endl;
 
-    errors = Compare(dechirp1, dechirp, dechirp1.size());
-    std::cout << "DeChirp [" + channel + "] Errors: " << errors << std::endl;
+    errors = Compare(dechirp, 0, dechirp24[configIdx]);
+    std::cout << "DeChirp [" + config + "] Errors: " << errors << std::endl;
 
-    errors = Compare(stft1, overlapSignal, stft1.size());
-    std::cout << "STFT Chann [" + channel + "] Errors: " << errors << std::endl;
-    
+    errors = Compare(overlapSignal, 0, stft24[configIdx]);
+    std::cout << "STFT Chann [" + config + "] Errors: " << errors << std::endl;    
+
     return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-bool SP::MinMax()
+bool SP::SpidermanSingleSplitProcess(int configId)
 {
-    int k = 0, L = 30, LOOPS = 1000;
-    Elapse el("MinMax", 16);
+    auto config = std::to_string(configId);
+    const int configIdx = configId - 1;
+    const int SF = (configIdx / 4) + 7;
+    const int windowSize = 1 << SF;
+    const int overlapSize = (int)(windowSize * OVERLAP);
+    const int hopSize = windowSize - overlapSize;
+    double MFS = 1.0 / (1 << SF);
+    const int downSample = 1 << (3 - configIdx % 4);
+    const int chunkCount = (int)chann1.size() / CHUNK_SIZE;
+    std::cout << "--------------------------------------------------------\n";
+    int k = 0, L = 30, LOOPS = 1;
+    Elapse el("Spiderman config chunk", 16);
 
-    float cpuVal[2] = {std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};
-    for (const auto &c : curr.cpu())
+    const int signalSize = DIV(CHUNK_SIZE, downSample);
+    const int numOfWindows = DIV(signalSize, windowSize) * windowSize / hopSize;
+    const int stftSize = numOfWindows * windowSize;
+
+    channChunk.reallocate(CHUNK_SIZE * 2);
+    signalDown.reallocate(signalSize);
+    dechirp.reallocate(signalSize * 2);
+    overlapSignal.reallocate(stftSize);
+    stats.reallocate(numOfWindows);
+
+    Zero(channChunk.p(0), CHUNK_SIZE);
+    Zero(dechirp.p(0), signalSize);
+
+    int curr = 0, prev = 0;
+    for (int chunkIdx = 0; chunkIdx < chunkCount; ++chunkIdx)
     {
-        cpuVal[0] = std::min(cpuVal[0], c.x);
-        cpuVal[1] = std::max(cpuVal[1], c.x);
-    }
+        const int chunkOff = chunkIdx * CHUNK_SIZE;
+        prev = curr;
+        curr = (curr + 1) % 2;
 
-    globals[0] = FRESL;
-    globals[1] = -FRESL;
-    globals.RefreshUp(2);
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("atomics", true, k < L);
+        Copy(channChunk.p(curr * CHUNK_SIZE), chann1.p(chunkOff), CHUNK_SIZE);
 
-        MinMaxAtomic<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-
-        el.Loop("atomics", false, k < L);
-    }
-    globals[0] = FRESL;
-    globals[1] = -FRESL;
-    globals.RefreshUp(2);
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("atomicsBlock", true, k < L);
-
-        MinMaxAtomicBlock<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-
-        el.Loop("atomicsBlock", false, k < L);
-    }
-
-    globals[0] = FRESL;
-    globals[1] = -FRESL;
-    globals.RefreshUp(2);
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("atomicsBlockShfl", true, k < L);
-
-        MinMaxAtomicBlockShfl<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-        // sync();
-        // globals.RefreshDown(2);
-        el.Loop("atomicsBlockShfl", false, k < L);
-    }
-
-    globals[0] = FRESL;
-    globals[1] = -FRESL;
-    globals.RefreshUp(2);
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("reduction", true, k < L);
-
-        MinMaxReduction<<<DIV(num_of_samples, GRP), GRP>>>(*curr, *globals, num_of_samples);
-        // sync();
-        // globals.RefreshDown(2);
-        el.Loop("reduction", false, k < L);
-    }
-
-    globals[0] = FRESL;
-    globals[1] = -FRESL;
-    globals.RefreshUp(2);
-    int chunk = 8;
-    for (k = 0; k < LOOPS; ++k)
-    {
-        el.Loop("atomicsBlockChunk", true, k < L);
-
-        MinMaxAtomicBlockChunk<<<DIV(num_of_samples, GRP * chunk), GRP>>>(*curr, *globals, chunk, num_of_samples);
-        // sync();
-        // globals.RefreshDown(2);
-        el.Loop("atomicsBlockChunk", false, k < L);
-    }
-    return true;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxAtomic(const float2 *input, int *output, int size)
-{
-    int idx = getI();
-    if (idx >= size)
-        return;
-
-    int smp = input[idx].x * FRESL;
-    atomicMin(&output[0], smp);
-    atomicMax(&output[1], smp);
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxAtomicI(const int *input, int *output, int size)
-{
-    int idx = getI();
-    if (idx >= size)
-        return;
-
-    int smp = input[idx];
-    atomicMin(&output[0], smp);
-    atomicMax(&output[1], smp);
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxAtomicBlock(const float2 *input, int *output, int size)
-{
-    int idx = getI();
-    if (idx >= size)
-        return;
-    __shared__ int gl[2];
-    if (threadIdx.x == 0)
-    {
-        gl[0] = FRESL;
-        gl[1] = -FRESL;
-    }
-    __syncthreads();
-
-    int smp = input[idx].x * FRESL;
-
-    atomicMin_block(&gl[0], smp);
-    atomicMax_block(&gl[1], smp);
-    __syncthreads();
-
-    if (threadIdx.x == 0)
-    {
-        atomicMin(&output[0], gl[0]);
-        atomicMax(&output[1], gl[1]);
-    }
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__device__ void warpReduceMinMax(int &minVal, int &maxVal)
-{
-    for (int offset = warpSize / 2; offset > 0; offset /= 2)
-    {
-        int shfl_min = __shfl_down_sync(0xffffffff, minVal, offset);
-        int shfl_max = __shfl_down_sync(0xffffffff, maxVal, offset);
-        minVal = min(minVal, shfl_min);
-        maxVal = max(maxVal, shfl_max);
-    }
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxAtomicBlockShfl(const float2 *input, int *output, int size)
-{
-    int idx = getI();
-    if (idx >= size)
-        return;
-
-    const int wrapCount = blockDim.x / warpSize; // 8
-    int laneId = threadIdx.x % warpSize;
-    int warpId = threadIdx.x / warpSize;
-
-    __shared__ int gl[2];
-    __shared__ int vals[8][2];
-    if (threadIdx.x == 0)
-    {
-        gl[0] = FRESL;
-        gl[1] = -FRESL;
-    }
-    __syncthreads();
-
-    int smp = input[idx].x * FRESL;
-    int minVal = smp, maxVal = smp;
-    warpReduceMinMax(minVal, maxVal);
-    if (laneId == 0)
-    {
-        vals[warpId][0] = minVal;
-        vals[warpId][1] = maxVal;
-    }
-    __syncthreads();
-    if (threadIdx.x < wrapCount)
-    {
-        minVal = vals[threadIdx.x][0];
-        maxVal = vals[threadIdx.x][1];
-    }
-    else
-    {
-        minVal = FRESL;
-        maxVal = -FRESL;
-    }
-    if (warpId == 0)
-        warpReduceMinMax(minVal, maxVal);
-    if (laneId == 0)
-    {
-        atomicMin_block(&gl[0], minVal);
-        atomicMax_block(&gl[1], maxVal);
-    }
-    __syncthreads();
-    if (threadIdx.x == 0)
-    {
-        atomicMin(&output[0], gl[0]);
-        atomicMax(&output[1], gl[1]);
-    }
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxAtomicBlockChunk(const float2 *input, int *output, int chunk, int size)
-{
-    int idx = getI() * chunk;
-    // if (idx >= size)
-    //     return;
-    __shared__ int gl[2];
-    if (threadIdx.x == 0)
-    {
-        gl[0] = FRESL;
-        gl[1] = -FRESL;
-    }
-    __syncthreads();
-
-    int smp;
-    int localMin = FRESL;
-    int localMax = -FRESL;
-
-    for (int i = 0; i < chunk && (idx + i) < size; ++i)
-    {
-        smp = input[idx + i].x * FRESL;
-        localMin = min(localMin, smp);
-        localMax = max(localMax, smp);
-    }
-
-    atomicMin_block(&gl[0], localMin);
-    atomicMax_block(&gl[1], localMax);
-    __syncthreads();
-
-    if (threadIdx.x == 0)
-    {
-        atomicMin(&output[0], gl[0]);
-        atomicMax(&output[1], gl[1]);
-    }
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void MinMaxReduction(const float2 *input, int *output, int size)
-{
-    __shared__ int sdata[256][2];
-
-    int idx = getI();
-    int tid = threadIdx.x;
-
-    if (idx < size)
-    {
-        int smp = input[idx].x * FRESL;
-
-        sdata[tid][0] = smp;
-        sdata[tid][1] = smp;
-    }
-    else
-    {
-        sdata[tid][0] = FRESL;
-        sdata[tid][1] = -FRESL;
-    }
-    __syncthreads();
-
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
-    {
-        if (tid < s && (idx + s) < size)
+        int errors = 0;
+        for (k = 0; k < LOOPS; ++k)
         {
-            sdata[tid][0] = min(sdata[tid][0], sdata[tid + s][0]);
-            sdata[tid][1] = max(sdata[tid][1], sdata[tid + s][1]);
+            el.Loop("Single Spiderman", true, k < L);
+            gbuffer<float> *pFir = GetFirFilter(downSample);
+            if (pFir)
+            {
+                auto &fir = *pFir;
+                const int filterSize = (int)fir.size();
+
+                convolve1DDownPrev<<<DIV(signalSize, GRP), GRP>>>(
+                    channChunk.p(prev * CHUNK_SIZE),
+                    channChunk.p(curr * CHUNK_SIZE),
+                    *fir, *signalDown,
+                    CHUNK_SIZE,
+                    signalSize,
+                    filterSize,
+                    downSample,
+                    0);
+            }
+            else
+            {
+                Copy(*signalDown, channChunk.p(curr * CHUNK_SIZE), signalSize);
+            }
+            el.Stamp("Decimate", k < L);
+
+            DeChirp<<<DIV(signalSize, GRP), GRP>>>(*signalDown, dechirp.p(curr * signalSize), signalSize, MFS, chunkIdx * signalSize, windowSize << 1);
+            el.Stamp("DeChirp", k < L);
+
+            dim3 grid(DIV(windowSize, GRP), numOfWindows);
+            applyOverlapSignalPrev<<<grid, GRP>>>(dechirp.p(prev * signalSize), dechirp.p(curr * signalSize), *overlapSignal, signalSize, windowSize, hopSize, numOfWindows);
+            el.Stamp("Apply Window");
+
+            FFT::Dispatch(true, overlapSignal, numOfWindows);
+            fftShift<<<grid, GRP>>>(*overlapSignal, windowSize, numOfWindows);
+            el.Stamp("STFT");
+
+            calcStatsPerWindow<<<DIV(numOfWindows, GRP), GRP>>>(*stats, *overlapSignal, windowSize, numOfWindows);
+            el.Stamp("Stats");
+
+            el.Loop("Single Spiderman", false, k < L);
         }
-        __syncthreads();
+        sync();
+        errors = Compare(signalDown, 0, decimate24[configIdx], chunkIdx * signalSize, signalSize);
+        if (errors > 0)
+            std::cout << "Decimate Chann [" + config + "] Chunk=" << chunkIdx << " Errors: " << errors << std::endl;
+
+        dechirp.RefreshDown();
+        errors = Compare(dechirp.h(curr * signalSize), 0, dechirp24[configIdx].data(), chunkIdx * signalSize, signalSize);
+        if (errors > 0)
+            std::cout << "DeChirp [" + config + "] Chunk=" << chunkIdx << " Errors: " << errors << std::endl;
+
+        errors = Compare(overlapSignal, 0, stft24[configIdx], chunkIdx * stftSize, stftSize);
+        if (errors > 0)
+            std::cout << "STFT Chann [" + config + "] Chunk=" << chunkIdx << " Errors: " << errors << std::endl;
+        //        break;
+    }
+    std::cout << "----------\t" << config << "\t----------------------------------------\n";
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::SpidermanBatchProcess()
+{
+    int k = 0, L = 30, LOOPS = 1;
+    Elapse el("SpidermanBatchProcess ZYX", 16);
+
+    int totChannelSize = (int)chann1.size();
+    int signalSize[4];
+    int downSamples[4] = {8, 4, 2, 1};
+    int windowSizes[6], hopSizes[6], numOfWindows[24], windowsOffset[24], totNumOfWindows[6] = {0, 0, 0, 0, 0, 0};
+    int SFs[6] = {7, 8, 9, 10, 11, 12};
+    for (int j = 0; j < 6; ++j)
+    {
+        windowSizes[j] = 1 << SFs[j];
+        hopSizes[j] = windowSizes[j] - int(windowSizes[j] * OVERLAP);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        const int downSize = DIV(totChannelSize, downSamples[i]);
+        signalSize[i] = downSize;
+        decimate4[i].resize(downSize);
+        dechirp4[i].resize(downSize * 6);
+
+        for (int j = 0; j < 6; ++j)
+        {
+            const int windowSize = windowSizes[j];
+            int signalPaddSize = DIV(downSize, windowSize) * windowSize;
+            numOfWindows[j * 4 + i] = signalPaddSize / hopSizes[j];
+        }
+    }
+    for (int j = 0; j < 6; ++j)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            windowsOffset[j * 4 + i] = totNumOfWindows[j];
+            totNumOfWindows[j] += numOfWindows[j * 4 + i];
+        }
+    }
+    for (int j = 0; j < 6; ++j)
+    {
+        overlapSignal6[j].resize(windowSizes[j] * totNumOfWindows[j]);
+        stats6[j].resize(totNumOfWindows[j]);
     }
 
-    if (tid == 0)
+    for (k = 0; k < LOOPS; ++k)
     {
-        atomicMin(&output[0], sdata[0][0]);
-        atomicMax(&output[1], sdata[0][1]);
+        el.Loop("Batch Spiderman", true, k < L);
+        for (int i = 0; i < 4; ++i)
+        {
+            const int downSample = downSamples[i];
+            const int downSize = signalSize[i];
+
+            gbuffer<float> *pFir = GetFirFilter(downSample);
+            if (pFir)
+            {
+                auto &fir = *pFir;
+                const int filterSize = (int)fir.size();
+
+                convolve1DDown<<<DIV(downSize, GRP), GRP>>>(
+                    *chann1,
+                    *fir,
+                    *decimate4[i],
+                    totChannelSize,
+                    downSize,
+                    filterSize,
+                    downSample,
+                    0);
+            }
+            else
+            {
+                Copy(*decimate4[i], *chann1, downSize);
+            }
+        }
+        el.Stamp("DecimateAll", k < L);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            const int downSize = signalSize[i];
+            for (int j = 0; j < 6; ++j)
+            {
+                double MFS = 1.0 / (1 << SFs[j]);
+                DeChirp<<<DIV(downSize, GRP), GRP>>>(*decimate4[i], dechirp4[i].p(downSize * j), downSize, MFS, 0, windowSizes[j] << 1);
+            }
+        }
+        el.Stamp("DeChirpAll", k < L);
+
+        for (int j = 0; j < 6; ++j)
+        {
+            const int hopSize = hopSizes[j];
+            const int windowSize = windowSizes[j];
+            for (int i = 0; i < 4; ++i)
+            {
+                const int downSize = signalSize[i];
+                const int numOfWnds = numOfWindows[j * 4 + i];
+                const int windowOffset = windowsOffset[j * 4 + i] * windowSize;
+                dim3 grid(DIV(windowSize, GRP), numOfWnds);
+                applyOverlapSignal<<<grid, GRP>>>(dechirp4[i].p(downSize * j), overlapSignal6[j].p(windowOffset), downSize, windowSize, hopSize, numOfWnds);
+            }
+        }
+        el.Stamp("Apply Window All", k < L);
+
+        for (int j = 0; j < 6; ++j)
+        {
+            const int windowSize = windowSizes[j];
+            const int numOfWnds = totNumOfWindows[j];
+            dim3 grid(DIV(windowSize, GRP), numOfWnds);
+            FFT::Dispatch(true, overlapSignal6[j], numOfWnds);
+            fftShift<<<grid, GRP>>>(*overlapSignal6[j], windowSize, numOfWnds);
+        }
+        el.Stamp("STFT All", k < L);
+
+        for (int j = 0; j < 6; ++j)
+            calcStatsPerWindow<<<DIV(totNumOfWindows[j], GRP), GRP>>>(*stats6[j], *overlapSignal6[j], windowSizes[j], totNumOfWindows[j]);
+        el.Stamp("Stats All", k < L);
+
+        el.Loop("Batch Spiderman", false, k < L);
     }
+    sync();
+    for (int i = 0; i < 4; ++i)
+    {
+        decimate4[i].RefreshDown();
+        dechirp4[i].RefreshDown();
+    }
+    for (int j = 0; j < 6; ++j)
+        overlapSignal6[j].RefreshDown();
+
+    int errors = 0;
+    for (int i = 0; i < 24; ++i)
+        errors += Compare(decimate4[i % 4], 0, decimate24[i]);
+    std::cout << "Decimate All Errors: " << errors << std::endl;
+
+    errors = 0;
+    for (int i = 0; i < 24; ++i)
+    {
+        int size = (int)dechirp24[i].size();
+        errors += Compare(dechirp4[i % 4], (i / 4) * size, dechirp24[i], 0, size);
+    }
+    std::cout << "DeChirp All Errors: " << errors << std::endl;
+
+    errors = 0;
+    for (int i = 0; i < 24; ++i)
+    {
+        const int windowSize = windowSizes[i / 4];
+        const int windowOffset = windowsOffset[i] * windowSize;
+        errors += Compare(overlapSignal6[i / 4], windowOffset, stft24[i]);
+    }
+    std::cout << "STFT All Errors: " << errors << std::endl;
+
+    return true;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+bool SP::SpidermanBatchSplitProcess()
+{
+    int k = 0, L = 30, LOOPS = 100;
+    Elapse el("SpidermanBatchSplitProcess", 16);
+
+#pragma region one_time_initiation
+    const int chunkCount = (int)chann1.size() / CHUNK_SIZE;
+
+    int signalSizes[4];
+    int downSamples[4] = {8, 4, 2, 1};
+    int windowSizes[6], hopSizes[6], numOfWindows[24], windowsOffset[24], totNumOfWindows[6] = {0, 0, 0, 0, 0, 0};
+    int SFs[6] = {7, 8, 9, 10, 11, 12};
+    for (int j = 0; j < 6; ++j)
+    {
+        windowSizes[j] = 1 << SFs[j];
+        hopSizes[j] = windowSizes[j] - int(windowSizes[j] * OVERLAP);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        const int signalSize = DIV(CHUNK_SIZE, downSamples[i]);
+        signalSizes[i] = signalSize;
+
+        decimate4[i].reallocate(signalSize);
+        dechirp4[i].reallocate(signalSize * 6 * 2);
+        decimate4res[i].reallocate(signalSize * chunkCount);
+
+        for (int j = 0; j < 6; ++j)
+        {
+            const int windowSize = windowSizes[j];
+            const int numOfWnds = DIV(signalSize, windowSize) * windowSize / hopSizes[j];
+            numOfWindows[j * 4 + i] = numOfWnds;
+            dechirp24res[j * 4 + i].reallocate(signalSize * chunkCount);
+            stft24res[j * 4 + i].reallocate(windowSize * numOfWnds * chunkCount);
+        }
+    }
+    for (int j = 0; j < 6; ++j)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            windowsOffset[j * 4 + i] = totNumOfWindows[j];
+            totNumOfWindows[j] += numOfWindows[j * 4 + i];
+        }
+    }
+    for (int j = 0; j < 6; ++j)
+    {
+        overlapSignal6[j].resize(windowSizes[j] * totNumOfWindows[j]);
+        stats6[j].resize(totNumOfWindows[j]);
+    }
+
+    channChunk.reallocate(CHUNK_SIZE * 2);
+    Zero(channChunk.p(0), CHUNK_SIZE);
+    for (int i = 0; i < 4; ++i)
+        Zero(dechirp4[i].p(0), signalSizes[i] * 6);
+#pragma endregion
+
+    for (k = 0; k < LOOPS; ++k)
+    {
+        Zero(channChunk.p(0), CHUNK_SIZE);
+        for (int i = 0; i < 4; ++i)
+            Zero(dechirp4[i].p(0), signalSizes[i] * 6);
+
+        el.Loop("Batch Spiderman", true, k < L);
+        int curr = 0, prev = 0;
+        for (int chunkIdx = 0; chunkIdx < chunkCount; ++chunkIdx)
+        {
+            const int chunkOff = chunkIdx * CHUNK_SIZE;
+            prev = curr;
+            curr = (curr + 1) % 2;
+            Copy(channChunk.p(curr * CHUNK_SIZE), chann1.p(chunkOff), CHUNK_SIZE);
+
+            el.Loop("Batch Spiderman_chunk", true, k < L);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                const int downSample = downSamples[i];
+
+                gbuffer<float> *pFir = GetFirFilter(downSample);
+                if (pFir)
+                {
+                    auto &fir = *pFir;
+                    const int filterSize = (int)fir.size();
+
+                    convolve1DDownPrev<<<DIV(signalSizes[i], GRP), GRP>>>(
+                        channChunk.p(prev * CHUNK_SIZE),
+                        channChunk.p(curr * CHUNK_SIZE),
+                        *fir, *decimate4[i],
+                        CHUNK_SIZE,
+                        signalSizes[i],
+                        filterSize,
+                        downSample,
+                        0);
+                }
+                else
+                {
+                    Copy(*decimate4[i], channChunk.p(curr * CHUNK_SIZE), signalSizes[i]);
+                }
+            }
+            el.Stamp("DecimateAll", k < L);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                const int signalSize = signalSizes[i];
+                for (int j = 0; j < 6; ++j)
+                {
+                    double MFS = 1.0 / (1 << SFs[j]);
+                    const int offset = curr * signalSize * 6 + j * signalSize;
+                    DeChirp<<<DIV(signalSize, GRP), GRP>>>(
+                        *decimate4[i],
+                        dechirp4[i].p(offset),
+                        signalSize,
+                        MFS,
+                        chunkIdx * signalSize,
+                        windowSizes[j] << 1);
+                }
+            }
+            el.Stamp("DeChirpAll", k < L);
+
+            for (int j = 0; j < 6; ++j)
+            {
+                const int hopSize = hopSizes[j];
+                const int windowSize = windowSizes[j];
+                for (int i = 0; i < 4; ++i)
+                {
+                    const int signalSize = signalSizes[i];
+                    const int prevOffset = prev * signalSize * 6 + j * signalSize;
+                    const int currOffset = curr * signalSize * 6 + j * signalSize;
+                    const int numOfWnds = numOfWindows[j * 4 + i];
+                    const int windowOffset = windowsOffset[j * 4 + i] * windowSize;
+                    dim3 grid(DIV(windowSize, GRP), numOfWnds);
+                    applyOverlapSignalPrev<<<grid, GRP>>>(
+                        dechirp4[i].p(prevOffset),
+                        dechirp4[i].p(currOffset),
+                        overlapSignal6[j].p(windowOffset),
+                        signalSize,
+                        windowSize,
+                        hopSize,
+                        numOfWnds);
+                }
+            }
+            el.Stamp("Apply Window All", k < L);
+
+            for (int j = 0; j < 6; ++j)
+            {
+                const int windowSize = windowSizes[j];
+                const int numOfWnds = totNumOfWindows[j];
+                dim3 grid(DIV(windowSize, GRP), numOfWnds);
+                FFT::Dispatch(true, overlapSignal6[j], numOfWnds);
+                fftShift<<<grid, GRP>>>(*overlapSignal6[j], windowSize, numOfWnds);
+            }
+            el.Stamp("STFT All", k < L);
+
+            for (int j = 0; j < 6; ++j)
+            {
+                calcStatsPerWindow<<<DIV(totNumOfWindows[j], GRP), GRP>>>(
+                    *stats6[j],
+                    *overlapSignal6[j],
+                    windowSizes[j],
+                    totNumOfWindows[j]);
+            }
+            el.Stamp("Stats All", k < L);
+
+            el.Loop("Batch Spiderman_chunk", false, k < L);
+
+            sync();
+            // save chunks one by one to compare later with results
+            for (int i = 0; i < 4; ++i)
+            {
+                Copy(decimate4res[i].p(chunkIdx * signalSizes[i]), decimate4[i].p(), signalSizes[i]);
+                for (int j = 0; j < 6; ++j)
+                {
+                    const int configIdx = j * 4 + i;
+                    const int signalSize = signalSizes[i];
+                    const int offset = curr * signalSize * 6 + j * signalSize;
+                    Copy(dechirp24res[configIdx].p(chunkIdx * signalSize), dechirp4[i].p(offset), signalSize);
+
+                    const int windowSize = windowSizes[j];
+                    const int windowOffset = windowsOffset[configIdx] * windowSize;
+                    const int stftSize = windowSize * numOfWindows[configIdx];
+                    Copy(stft24res[configIdx].p(chunkIdx * stftSize), overlapSignal6[j].p(windowOffset), stftSize);
+                }
+            }
+#ifdef FIND_ERROR_PER_CHUNK
+            for (int i = 0; i < 4; ++i)
+            {
+                decimate4[i].RefreshDown();
+                dechirp4[i].RefreshDown();
+            }
+            for (int j = 0; j < 6; ++j)
+                overlapSignal6[j].RefreshDown();
+
+            int errors = 0;
+            for (int configIdx = 0; configIdx < 24; ++configIdx)
+            {
+                const int i = configIdx % 4;
+                errors = Compare(decimate4[i], 0, decimate24[configIdx], chunkIdx * signalSizes[i], signalSizes[i]);
+            }
+            if (errors > 0)
+                std::cout << "Decimate All Errors: " << errors << std::endl;
+
+            errors = 0;
+            for (int configIdx = 0; configIdx < 24; ++configIdx)
+            {
+                const int i = configIdx % 4;
+                const int j = (configIdx / 4);
+                const int signalSize = signalSizes[i];
+                const int offset = curr * signalSize * 6 + j * signalSize;
+                errors += Compare(dechirp4[i].h(offset), 0, dechirp24[configIdx].data(), chunkIdx * signalSize, signalSize);
+            }
+            if (errors > 0)
+                std::cout << "DeChirp All Errors: " << errors << std::endl;
+
+            errors = 0;
+            for (int configIdx = 0; configIdx < 24; ++configIdx)
+            {
+                const int j = (configIdx / 4);
+                const int windowSize = windowSizes[j];
+                const int windowOffset = windowsOffset[configIdx] * windowSize;
+                const int stftSize = windowSize * numOfWindows[configIdx];
+                errors += Compare(overlapSignal6[j], windowOffset, stft24[configIdx], chunkIdx * stftSize, stftSize);
+            }
+            if (errors > 0)
+                std::cout << "STFT All Errors: " << errors << std::endl;
+#endif
+        }
+        el.Loop("Batch Spiderman", false, k < L);
+    }
+    int errors = 0;
+    for (int i = 0; i < 24; ++i)
+        errors += Compare(decimate4res[i % 4], 0, decimate24[i], 0, decimate4res[i % 4].size());
+    std::cout << "Decimate All Errors: " << errors << std::endl;
+
+    errors = 0;
+    for (int i = 0; i < 24; ++i)
+        errors += Compare(dechirp24res[i], 0, dechirp24[i], 0, dechirp24res[i].size());
+    std::cout << "Dechirp All Errors: " << errors << std::endl;
+
+    errors = 0;
+    for (int i = 0; i < 24; ++i)
+        errors += Compare(stft24res[i], 0, stft24[i], 0, stft24res[i].size());
+    std::cout << "STFT All Errors: " << errors << std::endl;
+
+    return true;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void FillDFTWeights(float2 *weights, int N)
@@ -562,6 +827,18 @@ __global__ void FillDFTWeights(float2 *weights, int N)
 
     float angle = -2.f * M_PI * i * j * invN;
     weights[idx] = {cos(angle), sin(angle)};
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__device__ float2 DFTW(int k, int n)
+{
+    float a = -2.0f * M_PI * k / n;
+    return {cosf(a), sinf(a)};
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__host__ __device__ float2 CW(double t)
+{
+    double p = -2.0 * M_PI * t;
+    return {(float)cos(p), (float)sin(p)};
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void MultiDFT(float2 *output, const float2 *data, const float2 *weights, int size, int N)
@@ -608,7 +885,6 @@ __global__ void MultiDFTIL(float2 *output, const float2 *data, const float2 *wei
         res.y += smp.x * w.y + smp.y * w.x;
     }
     output[idx] = res;
-    //    output[col * rows + row] = res;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void Transpose1D(const float *input, float *output, const int cols, const int rows, const int new_row_stride)
@@ -671,41 +947,21 @@ __global__ void InverseTranspose2D(const float2 *input, float2 *output, const in
     output[col * rows + row] = input[row * new_row_stride + col + offset];
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void CreateSignal(float2 *output, const int size)
+__global__ void DeChirp(const float2 *input, float2 *output, size_t size, double MFS, int chirpOffset, int chirpSize)
 {
     int idx = getI();
     if (idx >= size)
         return;
 
-    const float F0 = 1.f, F1 = 500.f;
-    const float fs = float(size);
-    float t = (float)idx / fs;
-    float k = F1 - F0;
-    float freq = F0 * t + 0.5 * k * t;
-    //    freq = 100.f;
-    float phase = 2.f * M_PI * freq * t;
-    float x = cos(phase);
-    float y = sin(phase);
-    float2 yval = {x, y};
-    output[idx] = yval;
-}
-//-------------------------------------------------------------------------------------------------------------------------------------------------//
-__global__ void DeChirp(const float2 *input, float2 *output, size_t size, double MFS)
-{
-    int idx = getI();
-    if (idx >= size)
-        return;
+    //    int cidx = (idx + chirpOffset)%chirpSize;
+    int cidx = (idx + chirpOffset); // no need to modulo by chirp size, will auto create because of sin/cos
 
-    float2 chirp_sample = ChirpK(idx, MFS);
+    float2 chirp_sample = ChirpK(cidx, MFS);
     float2 sample = input[idx];
 
-    float x1 = sample.x, y1 = sample.y;
-    float x2 = chirp_sample.x, y2 = chirp_sample.y;
-
-    float2 result = {x1 * x2 - y1 * y2, x1 * y2 + x2 * y1};
-
-    output[idx] = result;
+    output[idx] = cuCmulf(chirp_sample, sample);
 }
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void convolve2DFreq(float2 *curr, const float2 *filter, int size)
 {
     int idx = getI();
@@ -755,6 +1011,28 @@ __global__ void convolve1DDown(const float2 *curr, const float *filter, float2 *
     {
         if (s >= 0 && s < size)
             res += curr[s] * filter[f];
+    }
+    output[idx] = res;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void convolve1DDownPrev(const float2 *prev, const float2 *curr, const float *filter, float2 *output, const int size, const int downSize, const int filterSize, const int downSample, const int offset)
+{
+    int idx = getI();
+    if (idx >= downSize)
+        return;
+
+    const int I = (idx + offset) * downSample;
+
+    float2 res = {0.f, 0.f};
+    for (int f = 0, s = I + 1 - filterSize; f < filterSize; ++f, ++s)
+    {
+        if (s < size)
+        {
+            if (s >= 0)
+                res += curr[s] * filter[f];
+            else
+                res += prev[s + size] * filter[f];
+        }
     }
     output[idx] = res;
 }
@@ -875,6 +1153,32 @@ __global__ void applyOverlapSignal(
     }
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void applyOverlapSignalPrev(
+    const float2 *prev,
+    const float2 *curr,
+    float2 *outputSignal,
+    int signalSize,
+    int windowSize,
+    int hopSize,
+    int numOfWindows)
+{
+    const int idx = getI(); // [0, windowSize)
+    const int jdx = getJ(); // [0, numOfWindows)
+    if (idx >= windowSize || jdx >= numOfWindows)
+        return;
+
+    const int overlapSize = windowSize - hopSize;
+    const int ibase = jdx * hopSize + idx - overlapSize;
+    const int obase = jdx * windowSize + idx;
+
+    if (0 <= ibase && ibase < signalSize)
+        outputSignal[obase] = curr[ibase];
+    else if (ibase < signalSize)
+        outputSignal[obase] = prev[ibase + signalSize];
+    else
+        outputSignal[obase] = {0.f, 0.f};
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void applyWindowAndSegment(
     const float2 *inputSignal, // input signal      20,000
     const float *window,       // window function   1024
@@ -897,6 +1201,36 @@ __global__ void applyWindowAndSegment(
     outputSignal[obase].y = inputSignal[ibase].y * winValue;
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void freqShift(float2 *buffer, int size, double invFS) // InvFS = (1 / FS) * df
+{
+    int idx = getI();
+    if (idx >= size)
+        return;
+
+    //    matlab
+    //    ts = 1/fs;
+    //    N = length(x);
+    //    tvec = (0:ts:(N-1)*ts).';
+    //
+    //    y = x.*exp(2*pi*1j*df.*tvec);
+    double fs = 8.5e6;
+    double fd = 6.5e6;
+
+    double ts = double(idx) * (fd / fs);
+    //    if (idx <= 10)
+    //        printf("Idx: %d, ts: %.9f\n", idx, ts);
+
+    // double tdf = idx * invFS; // tvec(i) * df
+    float2 e = CW(ts), s = buffer[idx];
+
+    float2 d = cuCmulf(e, s);
+    //    float2 d = e * s;
+    if (idx <= 10)
+        printf("Idx: %d, ts: %.9f, sx: %.9f, sy: %.9f, dx: %.9f, dy: %.9f\n", idx, ts, s.x, s.y, d.x, d.y);
+
+    buffer[idx] = d;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
 __global__ void fftShift(float2 *buffer, int windowSize, int numOfWindows)
 {
     int idx = getI(); // [0, windowSize/2)
@@ -912,6 +1246,33 @@ __global__ void fftShift(float2 *buffer, int windowSize, int numOfWindows)
     float2 t = buffer[i];
     buffer[i] = buffer[j];
     buffer[j] = t;
+}
+//-------------------------------------------------------------------------------------------------------------------------------------------------//
+__global__ void calcStatsPerWindow(float4 *output, const float2 *input, int windowSize, int numOfWindows)
+{
+    int idx = getI(); // [0, numOfWindows)
+    if (idx >= numOfWindows)
+        return;
+
+    int maxIndex = -1;
+    float2 smp;
+    float tot = 0.f, maxVal = 0.f, val;
+    for (int i = 0; i < windowSize; ++i)
+    {
+        smp = input[idx * windowSize + i];
+        val = cuCabsf(smp);
+        tot += val;
+        if (maxVal < val)
+        {
+            maxVal = val;
+            maxIndex = i;
+        }
+    }
+
+    float avg = tot / windowSize;
+    float mavg = avg / maxVal;
+
+    output[idx] = {maxVal, avg, mavg, float(maxIndex)};
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 NAMESPACE_END(cu);
