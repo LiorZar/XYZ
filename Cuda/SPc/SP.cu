@@ -202,38 +202,6 @@ bool SP::SpidermanInit()
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::SpidermanLoad(int channel)
 {
-    //    raw.ReadFromFile(workDir + "t/raw.32fc");
-    //    Utils::FromFile(workDir + "t/ddc.32fc", ddc1);
-    //    /**
-    //     * if (fd > fs /2)
-    //     *      fd = - (fd % (fs / 2))
-    //     */
-    //    double fs = 8.5e6;
-    //    double fd = 6.5e6;
-    //    double invFsd = (1.0 / fs) * fd;
-    //
-    ////    0.0117747 - 0.0179254i
-    ////    0.0119519 - 0.0179124i
-    //    float err;
-    //    int errors= 0;
-    //    for(int idx = 0; idx < 10; ++idx){
-    //        double ts = double(idx) * (fd / fs);
-    //        float2 s = raw[idx], b = ddc1[idx];
-    //        double p = -2.0 * M_PI * ts;
-    //        double2 e = {cos(p), sin(p)};
-    ////        float2 e = CW(ts);
-    //
-    //        double2 ad = cuCmul(e, {s.x, s.y});
-    //        float2 a = {ad.x, ad.y};
-    //        if(false == CMP(a,b,&err))
-    //            ++errors;
-    //    }
-    //    freqShift<<<DIV(raw.size(), GRP), GRP>>>(*raw, raw.size(), invFsd);
-    //    sync();
-
-    //    auto err = Compare(raw, 0, ddc1);
-    //    std::cout << "ERRRR = " << err << std::endl;
-
     fir2.ReadFromFile(spdDir + "fir2.32f");
     fir4.ReadFromFile(spdDir + "fir4.32f");
     fir8.ReadFromFile(spdDir + "fir8.32f");
@@ -465,7 +433,7 @@ bool SP::SpidermanSingleSplitProcess(int configId)
 //-------------------------------------------------------------------------------------------------------------------------------------------------//
 bool SP::SpidermanBatchSplitProcess()
 {
-    int k = 0, L = 30, LOOPS = 1;
+    int k = 0, L = 30, LOOPS = 100;
     Elapse el("SpidermanBatchSplitProcess", 16);
 
     const int chunkCount = (int)chann1.size() / CHUNK_SIZE;
